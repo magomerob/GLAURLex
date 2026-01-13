@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "urlex"
+version = "0.1.0"
+description = ""
+authors = ["magomerob <mark.mg02@gmail.com>"]
+readme = "README.md"
+packages = [{ include = "urlex", from = "src" }]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+streamlit = "^1.52.2"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.14.11"
+pytest = "^9.0.2"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
