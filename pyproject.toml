@@ -9,6 +9,7 @@ packages = [{ include = "urlex", from = "src" }]
 [tool.poetry.dependencies]
 python = "^3.11"
 streamlit = "^1.52.2"
+pandas = "^2.3.3"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.14.11"
