@@ -2,41 +2,57 @@ from __future__ import annotations
 
 import streamlit as st
 
-from urlex.ui.components.sidebar import render_sidebar
-from urlex.ui.state import has_data_loaded
-from urlex.ui.views import graphs, load_data, visualize
+from urlex.ui.state import ensure_state, has_dataset_loaded
+from urlex.ui.views.graphs import render_graphs
 
-APP_TITLE = "URLex - UI"
-
-PAGE_LOAD = "1) Carga de datos"
-PAGE_VIZ = "2) Visualización"
-PAGE_GRAPHS = "3) Grafos"
+# Páginas
+from urlex.ui.views.load_data import render_load_data
+from urlex.ui.views.visualize import render_visualize
 
 
-def main() -> None:
-    st.set_page_config(page_title=APP_TITLE, layout="wide")
-    st.title(APP_TITLE)
+def main():
+    st.set_page_config(page_title="URLex", layout="wide")
 
-    if has_data_loaded():
-        available_pages = [PAGE_LOAD, PAGE_VIZ, PAGE_GRAPHS]
+    ensure_state()
+
+    st.title("URLex")
+
+    # No mostrar el botón de deploy
+    st.markdown(
+        r"""
+    <style>
+    .stAppDeployButton {
+            visibility: hidden;
+        }
+    </style>
+    """,
+        unsafe_allow_html=True,
+    )
+
+    # Sidebar navigation (una sola vez -> evita duplicados)
+    st.sidebar.header("Navegación")
+
+    # Si no hay dataset, bloqueamos visualización y grafos en la UI
+    if has_dataset_loaded():
+        options = ["1) Carga de datos", "2) Estadísticas", "3) Grafos"]
     else:
-        available_pages = [PAGE_LOAD]
+        options = ["1) Carga de datos", "2) Estadísticas (bloqueado)", "3) Grafos (bloqueado)"]
 
-    page = render_sidebar(available_pages)
+    page = st.sidebar.radio("Ir a:", options, index=0, key="nav_page")
 
-    # Guard extra
-    if not has_data_loaded() and page in (PAGE_VIZ, PAGE_GRAPHS):
-        st.warning("Primero carga datos para acceder a esta sección.")
-        page = PAGE_LOAD
+    if page.startswith("1)"):
+        render_load_data()
+        return
 
-    if page == PAGE_LOAD:
-        load_data.render()
-    elif page == PAGE_VIZ:
-        visualize.render()
-    elif page == PAGE_GRAPHS:
-        graphs.render()
-    else:
-        st.error(f"Página desconocida: {page}")
+    # Gatekeeping duro (aunque el usuario fuerce la navegación)
+    if not has_dataset_loaded():
+        st.warning("Primero tienes que cargar o seleccionar un dataset en **1) Carga de datos**.")
+        st.stop()
+
+    if page.startswith("2)"):
+        render_visualize()
+    elif page.startswith("3)"):
+        render_graphs()
 
 
 if __name__ == "__main__":

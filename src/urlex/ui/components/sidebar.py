@@ -4,10 +4,6 @@ import streamlit as st
 
 
 def render_sidebar(available_pages: list[str]) -> str:
-    """
-    Si ya tenéis una sidebar propia, sustituye el cuerpo por vuestra lógica,
-    pero mantén la idea: recibir `available_pages` y devolver la página elegida.
-    """
     st.sidebar.title("Navegación")
 
     # Guardamos la selección para que sea estable entre reruns

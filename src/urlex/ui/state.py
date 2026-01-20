@@ -1,18 +1,25 @@
 from __future__ import annotations
 
-import streamlit as st
-from urlex.core.models import LoadResult
-
-STATE_KEY = "load_result"
+from dataclasses import dataclass
+from typing import Optional
 
 
-def get_load_result() -> LoadResult | None:
-    return st.session_state.get(STATE_KEY, None)
+@dataclass
+class AppState:
+    dataset_name: Optional[str] = None
 
 
-def set_load_result(lr: LoadResult | None) -> None:
-    st.session_state[STATE_KEY] = lr
+def ensure_state():
+    import streamlit as st
+
+    if "app_state" not in st.session_state:
+        st.session_state["app_state"] = AppState()
+
+    return st.session_state["app_state"]
 
 
-def has_data_loaded() -> bool:
-    return get_load_result() is not None
+def has_dataset_loaded() -> bool:
+    import streamlit as st
+
+    s: AppState = st.session_state.get("app_state")
+    return bool(s and s.dataset_name)

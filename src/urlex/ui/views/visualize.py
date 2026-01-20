@@ -1,86 +1,146 @@
-# src/urlex/ui/pages/visualize.py
 from __future__ import annotations
 
+import matplotlib.pyplot as plt
 import streamlit as st
 
-from urlex.core import dataset_service as ds
-from urlex.ui.state import get_load_result
+from urlex.config import DEFAULT_PROCESSED_DIR
+from urlex.core.dataset_service import DatasetService
+from urlex.core.stats import estadisticas_df  # <- usa la versión vectorizada
+from urlex.ui.state import ensure_state
 
 
-def render() -> None:
-    st.header("2) Visualización de datos")
+@st.cache_resource
+def get_service(processed_dir: str) -> DatasetService:
+    return DatasetService(processed_dir)
 
-    lr = get_load_result()
-    if lr is None:
-        st.warning("No hay datos cargados. Ve a **1) Carga de datos**.")
+
+@st.cache_data
+def load_dataset(processed_dir: str, name: str):
+    svc = get_service(processed_dir)
+    return svc.load_processed(name)
+
+
+@st.cache_data(show_spinner=False)
+def compute_stats_cached(df_tema, cache_key: str):
+    # cache_key fuerza invalidación si cambias de tema/dataset
+    _ = cache_key
+    return estadisticas_df(df_tema)
+
+
+def render_visualize():
+    s = ensure_state()
+    st.header("Estadísticas")
+
+    processed_dir = st.session_state.get("DatasetService::processed_dir", DEFAULT_PROCESSED_DIR)
+    processed_dir = st.session_state.get("processed_dir", processed_dir)
+
+    ds = load_dataset(processed_dir, s.dataset_name)
+
+    # Opcional: pequeño contexto del dataset
+    with st.expander("Información del dataset", expanded=False):
+        st.write(
+            {
+                "dataset": s.dataset_name,
+                "processed_dir": processed_dir,
+                "n_informantes": len(ds.informantes),
+                "n_temas": len(ds.temas),
+            }
+        )
+
+    st.subheader("Temas")
+    tema_names = sorted(ds.temas.keys())
+    if not tema_names:
+        st.warning("No hay temas disponibles en este dataset procesado.")
         return
 
-    # Contexto
-    st.write(f"**Dataset activo:** `{lr.ref.name}`  \n**Origen:** `{lr.ref.kind}`")
-    if lr.ref.path is not None:
-        st.caption(f"Ruta: `{lr.ref.path.as_posix()}`")
+    # recuerda selección
+    default_tema = st.session_state.get("visualize::tema", tema_names[0])
+    if default_tema not in tema_names:
+        default_tema = tema_names[0]
 
-    df = lr.df
+    tema = st.selectbox("Selecciona un tema", tema_names, index=tema_names.index(default_tema))
+    st.session_state["visualize::tema"] = tema
 
-    # Controles básicos (UI-only)
-    c1, c2, c3 = st.columns([1, 2, 2], gap="large")
+    df_tema = ds.temas[tema]
+
+    st.caption(f"Filas en tema **{tema}**: {len(df_tema):,}")
+
+    # Controles
+    c1, c2, c3 = st.columns([1, 1, 2])
     with c1:
-        n_rows = st.number_input("Filas a mostrar", min_value=5, max_value=500, value=50, step=5)
+        top_n = st.number_input("Top N", min_value=10, max_value=2000, value=50, step=10)
     with c2:
-        selected_cols = st.multiselect(
-            "Columnas",
-            df.columns.tolist(),
-            default=df.columns.tolist()[: min(8, df.shape[1])],
-        )
+        min_ap = st.slider("Aparición mínima", 0.0, 1.0, 0.0, 0.01)
     with c3:
-        query = st.text_input(
-            "Filtro (pandas query) — opcional",
-            placeholder="ej: colA > 10 and colB == 'X'",
-        )
+        query = st.text_input("Filtrar token (contiene)", value="")
 
-    view = df
-    if selected_cols:
-        view = view[selected_cols]
+    # Calcular estadísticas
+    # cache_key para que el caché distinga dataset + tema
+    cache_key = f"{s.dataset_name}::{tema}::{len(df_tema)}"
+    with st.spinner("Calculando estadísticas del tema..."):
+        stats = compute_stats_cached(df_tema, cache_key=cache_key)
 
-    if query.strip():
-        try:
-            view = view.query(query)
-        except Exception as e:
-            st.error(f"Query inválida: {e}")
+    # Filtros
+    stats_view = stats
+    if query:
+        stats_view = stats_view[
+            stats_view["token"].astype(str).str.contains(query, case=False, na=False)
+        ]
+    stats_view = stats_view[stats_view["aparición"] >= min_ap]
 
-    # Tabla
-    st.subheader("Tabla")
-    st.dataframe(view.head(int(n_rows)), use_container_width=True)
+    stats_top = stats_view.head(int(top_n))
 
-    # Resumen (placeholder de core)
-    st.subheader("Resumen (placeholder core)")
+    # KPIs
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric("Tokens únicos", f"{len(stats):,}")
+    k2.metric("Mostrados (tras filtros)", f"{len(stats_view):,}")
+    k3.metric("Freq. Top N", f"{stats_top['freq_rel'].sum():.3f}")
+    k4.metric("Disponibilidad máx", f"{stats['disponibilidad'].max():.4f}")
 
-    try:
-        summary = ds.summarize_dataframe(df)  # <- placeholder en core/dataset_service.py
-        st.json(summary)
-    except NotImplementedError as e:
-        st.info("Resumen no disponible aún (placeholder).")
-        st.caption(str(e))
-    except Exception as e:
-        st.error(f"Error generando resumen: {e}")
+    st.divider()
 
-    # Artefactos del dataset procesado (placeholder core)
-    if lr.ref.kind == "processed" and lr.ref.path is not None:
-        st.subheader("Artefactos del dataset procesado (placeholder core)")
-        try:
-            artifacts = ds.get_processed_artifacts(lr.ref.path)  # <- placeholder
-            if not artifacts:
-                st.info("No se detectaron artefactos (o el core devolvió vacío).")
-            else:
-                # mostramos en formato simple (clave -> ruta)
-                st.write({k: v.as_posix() for k, v in artifacts.items()})
-        except NotImplementedError as e:
-            st.info("Detección de artefactos no disponible aún (placeholder).")
-            st.caption(str(e))
-        except Exception as e:
-            st.error(f"Error leyendo artefactos: {e}")
+    # Tabla principal
+    st.subheader("Tabla de estadísticas (ordenada por disponibilidad)")
+    st.dataframe(
+        stats_top,
+        width="stretch",
+        hide_index=True,
+        column_config={
+            "disponibilidad": st.column_config.NumberColumn(format="%.6f"),
+            "avg_pos": st.column_config.NumberColumn("avg_pos", format="%.3f"),
+            "aparición": st.column_config.NumberColumn("aparición", format="%.4f"),
+            "freq_rel": st.column_config.NumberColumn(format="%.6f"),
+            "freq_acum": st.column_config.NumberColumn(format="%.6f"),
+        },
+    )
 
-    # Lugar para futuras visualizaciones
-    with st.expander("Visualizaciones (placeholder)"):
-        st.write("Aquí añadiremos gráficas, estadísticas y exploración interactiva.")
-        st.button("Generar plot (no hace nada aún)", disabled=True)
+    # Descarga CSV
+    st.download_button(
+        "Descargar CSV (tras filtros)",
+        data=stats_view.to_csv(index=False).encode("utf-8"),
+        file_name=f"{s.dataset_name}_{tema}_estadisticas.csv",
+        mime="text/csv",
+    )
+
+    st.divider()
+
+    # Gráficos
+    st.subheader("Gráficos")
+
+    if len(stats_top) > 0:
+        # 1) Disponibilidad (Top N)
+        fig1 = plt.figure()
+        plt.plot(stats_top["token"], stats_top["disponibilidad"])
+        plt.xticks(rotation=90)
+        plt.xlabel("token")
+        plt.ylabel("disponibilidad")
+        plt.tight_layout()
+        st.pyplot(fig1, clear_figure=True)
+
+    # 2) Frecuencia acumulada (sobre ranking por disponibilidad)
+    fig2 = plt.figure()
+    plt.plot(stats["freq_acum"].to_numpy())
+    plt.xlabel("rank (por disponibilidad)")
+    plt.ylabel("freq_acum")
+    plt.tight_layout()
+    st.pyplot(fig2, clear_figure=True)
