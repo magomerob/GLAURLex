@@ -66,7 +66,7 @@ def df_example_1():
 # U2: a,c
 # U3: a,d
 # Disponibilidades esperadas:
-#   a=1.0, b=c=d=0.1055
+#   a=1.0, b=c=d=0.0334196
 # ============================================================
 
 
@@ -122,10 +122,10 @@ def _assert_no_duplicate_token_per_user(df: pd.DataFrame) -> None:
 def _assert_basic_properties(stats: pd.DataFrame) -> None:
     assert set(stats.columns) == {
         "token",
-        "freq_rel",
         "disponibilidad",
         "avg_pos",
         "aparición",
+        "freq_rel",
         "freq_acum",
     }
     assert np.isclose(stats["freq_rel"].sum(), 1.0)
@@ -176,14 +176,14 @@ def test_example_1_aparicion_is_one(df_example_1):
 def test_example_1_disponibilidades(df_example_1):
     """
     Esperadas (por token):
-      b = 0.8215
-      a = 0.5601
-      c = 0.2987
+      b = 0.772212
+      a = 0.472299
+      c = 0.172385
     """
     stats = estadisticas_df(df_example_1).set_index("token")
-    assert np.isclose(stats.loc["b", "disponibilidad"], 0.8215, atol=1e-4)
-    assert np.isclose(stats.loc["a", "disponibilidad"], 0.5601, atol=1e-4)
-    assert np.isclose(stats.loc["c", "disponibilidad"], 0.2987, atol=1e-4)
+    assert np.isclose(stats.loc["b", "disponibilidad"], 0.772212, atol=1e-4)
+    assert np.isclose(stats.loc["a", "disponibilidad"], 0.472299, atol=1e-4)
+    assert np.isclose(stats.loc["c", "disponibilidad"], 0.172385, atol=1e-4)
 
 
 # ============================================================
@@ -229,15 +229,15 @@ def test_example_2_disponibilidades(df_example_2):
     """
     Esperadas (por token):
       a = 1.0
-      b = 0.1055
-      c = 0.1055
-      d = 0.1055
+      b = 0.0334196
+      c = 0.0334196
+      d = 0.0334196
     """
     stats = estadisticas_df(df_example_2).set_index("token")
     assert np.isclose(stats.loc["a", "disponibilidad"], 1.0, atol=1e-6)
-    assert np.isclose(stats.loc["b", "disponibilidad"], 0.1055, atol=1e-4)
-    assert np.isclose(stats.loc["c", "disponibilidad"], 0.1055, atol=1e-4)
-    assert np.isclose(stats.loc["d", "disponibilidad"], 0.1055, atol=1e-4)
+    assert np.isclose(stats.loc["b", "disponibilidad"], 0.0334196, atol=1e-4)
+    assert np.isclose(stats.loc["c", "disponibilidad"], 0.0334196, atol=1e-4)
+    assert np.isclose(stats.loc["d", "disponibilidad"], 0.0334196, atol=1e-4)
 
 
 # ============================================================

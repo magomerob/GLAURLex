@@ -6,7 +6,7 @@ from pathlib import Path
 import streamlit as st
 
 from urlex.config import DEFAULT_PROCESSED_DIR
-from urlex.core.dataset_service import DatasetService  # ajusta import si tu ruta cambia
+from urlex.core.dataset_service import DatasetService
 from urlex.ui.state import ensure_state
 
 

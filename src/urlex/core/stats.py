@@ -13,11 +13,7 @@ def estadisticas_df(df: pd.DataFrame) -> pd.DataFrame:
             columns=["token", "disponibilidad", "avg_pos", "aparición", "freq_rel", "freq_acum"]
         )
 
-    # FALLO EN LexPRO, LO CORRECTO ES:
-    # ninf = df["user_id"].nunique()
-    ninf = df["user_id"].max()
-    if pd.isna(ninf) or ninf == 0:
-        ninf = df["user_id"].nunique()
+    ninf = df["user_id"].nunique()
 
     # Pos máxima alcanzada
     n = int(df["pos"].max()) if pd.notna(df["pos"].max()) else 0
@@ -61,8 +57,8 @@ def estadisticas_df(df: pd.DataFrame) -> pd.DataFrame:
     tp = df.groupby(["token", "pos"])["user_id"].nunique().rename("u").reset_index()
 
     # 2) pesos por pos
-    # tu fórmula: exp(-2.3 * (i/(n+1)))
-    weights = np.exp(-2.3 * (tp["pos"].to_numpy() / (n + 1)))
+    # exp(-2.3 * (i/(n)))
+    weights = np.exp(-2.3 * (tp["pos"].to_numpy() / (n)))
 
     # 3) sumar e * (u/ninf) por token
     tp["w"] = weights
@@ -84,6 +80,7 @@ def estadisticas_df(df: pd.DataFrame) -> pd.DataFrame:
 
     out = out.sort_values(by=["disponibilidad"], ascending=False)
     out["freq_acum"] = out["freq_rel"].cumsum()
+
     return out
 
 

@@ -5,7 +5,7 @@ import streamlit as st
 
 from urlex.config import DEFAULT_PROCESSED_DIR
 from urlex.core.dataset_service import DatasetService
-from urlex.core.stats import estadisticas_df  # <- usa la versión vectorizada
+from urlex.core.stats import estadisticas_df
 from urlex.ui.state import ensure_state
 
 
@@ -36,7 +36,6 @@ def render_visualize():
 
     ds = load_dataset(processed_dir, s.dataset_name)
 
-    # Opcional: pequeño contexto del dataset
     with st.expander("Información del dataset", expanded=False):
         st.write(
             {
