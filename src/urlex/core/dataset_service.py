@@ -143,3 +143,9 @@ class DatasetService:
         inf = root / "informantes.parquet"
         if not inf.exists():
             raise FileNotFoundError(f"Falta informantes.parquet en {root}")
+
+    def load_informantes(self):
+        path = self.processed_dir / "informantes.parquet"
+        if not path.exists():
+            raise FileNotFoundError("No existe informantes.parquet")
+        return pd.read_parquet(path)

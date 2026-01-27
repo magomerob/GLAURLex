@@ -18,7 +18,7 @@ def get_dataset_service(processed_dir: str) -> DatasetService:
 def render_load_data():
     s = ensure_state()
 
-    st.header("1) Carga de datos")
+    st.header("Carga de datos")
 
     processed_dir = st.text_input(
         "Directorio de datasets procesados",

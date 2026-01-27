@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 
-def estadisticas_df(df: pd.DataFrame) -> pd.DataFrame:
+def estadisticas_df(df: pd.DataFrame, informantes_df: pd.DataFrame = None) -> pd.DataFrame:
     """
     Espera columnas: token (str), pos (int), user_id (int/str)
     Devuelve: token, freq_rel, disponibilidad, avg_pos, aparicion, freq_acum
@@ -12,6 +12,10 @@ def estadisticas_df(df: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame(
             columns=["token", "disponibilidad", "avg_pos", "aparición", "freq_rel", "freq_acum"]
         )
+
+    if informantes_df is not None:
+        allowed = set(informantes_df["CODIGO_INFORMANTE"].tolist())
+        df = df[df["user_id"].isin(allowed)]
 
     ninf = df["user_id"].nunique()
 
