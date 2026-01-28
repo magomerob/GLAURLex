@@ -1,3 +1,7 @@
+"""! @package urlex.core.dataset_service
+Servicios para procesar y cargar datasets en formato parquet.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -9,7 +13,14 @@ import pandas as pd
 
 @dataclass(frozen=True)
 class ProcessedDataset:
-    """Representa un dataset ya procesado (parquets en un directorio)."""
+    """! Representa un dataset ya procesado (parquets en un directorio).
+
+    Attributes:
+        - `name`: Nombre del dataset.
+        - `root`: Ruta al directorio raiz del dataset.
+        - `informantes`: DataFrame con la tabla de informantes.
+        - `temas`: Mapa tema -> DataFrame con columnas [user_id, pos, token].
+    """
 
     name: str
     root: Path
@@ -18,19 +29,26 @@ class ProcessedDataset:
 
 
 class DatasetService:
-    """
-    Servicio de datasets:
-      - procesa un XLSX a un directorio (parquets)
-      - lista datasets ya procesados
-      - carga un dataset procesado
+    """! Servicio de datasets.
+
+    - procesa un XLSX a un directorio (parquets)
+    - lista datasets ya procesados
+    - carga un dataset procesado
     """
 
     def __init__(self, processed_dir: str | Path) -> None:
+        """! Crea el servicio y asegura el directorio de salida.
+
+        @param processed_dir Directorio base donde se guardan datasets procesados.
+        """
         self.processed_dir = Path(processed_dir)
         self.processed_dir.mkdir(parents=True, exist_ok=True)
 
     def list_processed(self) -> List[str]:
-        """Lista nombres de datasets procesados (subdirectorios con informantes.parquet)."""
+        """! Lista nombres de datasets procesados.
+
+        @return Lista de subdirectorios que contienen `informantes.parquet`.
+        """
         out: List[str] = []
         for d in sorted(self.processed_dir.iterdir()):
             if d.is_dir() and (d / "informantes.parquet").exists():
@@ -38,9 +56,19 @@ class DatasetService:
         return out
 
     def get_processed_path(self, name: str) -> Path:
+        """! Devuelve la ruta absoluta al dataset procesado.
+
+        @param name Nombre del dataset.
+        @return Ruta absoluta al directorio del dataset.
+        """
         return (self.processed_dir / name).resolve()
 
     def is_processed(self, name: str) -> bool:
+        """! Indica si el dataset ya está procesado.
+
+        @param name Nombre del dataset.
+        @return True si existe el directorio y `informantes.parquet`.
+        """
         p = self.get_processed_path(name)
         return p.is_dir() and (p / "informantes.parquet").exists()
 
@@ -50,10 +78,14 @@ class DatasetService:
         dataset_name: Optional[str] = None,
         overwrite: bool = False,
     ) -> str:
-        """
-        Procesa un XLSX usando pdprocessxlsx y deja el resultado en processed_dir/dataset_name/.
+        """! Procesa un XLSX y genera parquets en el directorio de procesados.
 
-        Devuelve el nombre del dataset procesado.
+        @param xlsx_path Ruta al XLSX.
+        @param dataset_name Nombre lógico del dataset (por defecto, nombre del archivo).
+        @param overwrite Si True, reemplaza un dataset existente.
+        @return Nombre del dataset procesado.
+        @exception FileNotFoundError Si el XLSX no existe.
+        @exception FileExistsError Si ya existe el dataset y overwrite es False.
         """
         xlsx_path = Path(xlsx_path)
         if not xlsx_path.exists():
@@ -81,8 +113,12 @@ class DatasetService:
         return dataset_name
 
     def load_processed(self, name: str) -> ProcessedDataset:
-        """
-        Carga informantes + todos los temas de un dataset procesado.
+        """! Carga informantes y todos los temas de un dataset procesado.
+
+        @param name Nombre del dataset.
+        @return Objeto ProcessedDataset con datos cargados.
+        @exception FileNotFoundError Si el directorio no es válido.
+        @exception ValueError Si falta el esquema esperado o no hay temas.
         """
         root = self.get_processed_path(name)
         self._validate_processed_dir(root)
@@ -122,7 +158,13 @@ class DatasetService:
         )
 
     def load_tema(self, dataset_name: str, tema: str) -> pd.DataFrame:
-        """Carga un único tema sin cargar todos."""
+        """! Carga un único tema sin cargar todos.
+
+        @param dataset_name Nombre del dataset.
+        @param tema Nombre del tema (archivo parquet sin extensión).
+        @return DataFrame del tema.
+        @exception FileNotFoundError Si el tema no existe.
+        """
         root = self.get_processed_path(dataset_name)
         self._validate_processed_dir(root)
         f = root / f"{tema}.parquet"
@@ -131,20 +173,34 @@ class DatasetService:
         return pd.read_parquet(f)
 
     def list_temas(self, dataset_name: str) -> List[str]:
-        """Lista los temas disponibles (parquets excepto informantes)."""
+        """! Lista los temas disponibles (parquets excepto informantes).
+
+        @param dataset_name Nombre del dataset.
+        @return Lista de nombres de temas.
+        """
         root = self.get_processed_path(dataset_name)
         self._validate_processed_dir(root)
         temas = [f.stem for f in sorted(root.glob("*.parquet")) if f.name != "informantes.parquet"]
         return temas
 
     def _validate_processed_dir(self, root: Path) -> None:
+        """! Valida la estructura mínima de un dataset procesado.
+
+        @param root Ruta del directorio a validar.
+        @exception FileNotFoundError Si falta el directorio o `informantes.parquet`.
+        """
         if not root.exists() or not root.is_dir():
             raise FileNotFoundError(f"No existe el directorio del dataset: {root}")
         inf = root / "informantes.parquet"
         if not inf.exists():
             raise FileNotFoundError(f"Falta informantes.parquet en {root}")
 
-    def load_informantes(self):
+    def load_informantes(self) -> pd.DataFrame:
+        """! Carga el parquet de informantes del directorio base.
+
+        @return DataFrame con informantes.
+        @exception FileNotFoundError Si no existe `informantes.parquet`.
+        """
         path = self.processed_dir / "informantes.parquet"
         if not path.exists():
             raise FileNotFoundError("No existe informantes.parquet")

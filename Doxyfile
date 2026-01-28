@@ -1,0 +1,23 @@
+PROJECT_NAME           = "URLex Core"
+PROJECT_BRIEF          = "Documentación automática del módulo core"
+OUTPUT_DIRECTORY       = build/doxygen
+CREATE_SUBDIRS         = NO
+FULL_PATH_NAMES        = NO
+STRIP_FROM_PATH        = .
+INPUT                  = src/urlex/core
+FILE_PATTERNS          = *.py
+RECURSIVE              = YES
+EXTENSION_MAPPING      = py=Python
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+HIDE_UNDOC_MEMBERS     = NO
+HIDE_UNDOC_CLASSES     = NO
+OPTIMIZE_OUTPUT_FOR_C  = NO
+MARKDOWN_SUPPORT       = YES
+QUIET                  = YES
+WARN_IF_UNDOCUMENTED   = YES
+WARN_NO_PARAMDOC       = YES
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+GENERATE_XML           = NO
+SOURCE_BROWSER         = NO

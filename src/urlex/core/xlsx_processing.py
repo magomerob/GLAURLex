@@ -1,3 +1,7 @@
+"""! @package urlex.core.xlsx_processing
+Procesamiento de archivos XLSX a parquets por tema.
+"""
+
 from __future__ import annotations
 
 import re
@@ -7,6 +11,11 @@ import pandas as pd
 
 
 def _sanitize_filename(name: str) -> str:
+    """! Normaliza un nombre para usarlo como archivo.
+
+    @param name Nombre original.
+    @return Nombre seguro para rutas.
+    """
     # evita problemas en Linux/Windows y rutas
     name = str(name).strip()
     name = re.sub(r"[^\w\- ]+", "_", name, flags=re.UNICODE)
@@ -15,9 +24,13 @@ def _sanitize_filename(name: str) -> str:
 
 
 def _coerce_code(x):
-    """
-    Intenta convertir códigos tipo 1, 1.0, '1', ' 1 ' a int.
+    """! Intenta normalizar códigos numéricos de Excel.
+
+    Convierte 1, 1.0, "1", " 1 " a int cuando sea posible.
     Si no se puede, devuelve el valor original.
+
+    @param x Valor de entrada.
+    @return Valor normalizado o el original.
     """
     if pd.isna(x):
         return x
@@ -44,6 +57,12 @@ def _coerce_code(x):
 
 
 def pdprocessxlsx(path, respath):
+    """! Procesa un XLSX y escribe parquets en el directorio de salida.
+
+    @param path Ruta al XLSX.
+    @param respath Directorio de salida para parquets.
+    @exception ValueError Si faltan hojas requeridas.
+    """
     path = Path(path)
     respath = Path(respath)
     respath.mkdir(parents=True, exist_ok=True)

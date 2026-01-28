@@ -1,11 +1,20 @@
 import numpy as np
 import pandas as pd
 
+"""! @package urlex.core.stats
+Funciones estadísticas sobre datasets tokenizados.
+"""
+
 
 def estadisticas_df(df: pd.DataFrame, informantes_df: pd.DataFrame = None) -> pd.DataFrame:
-    """
-    Espera columnas: token (str), pos (int), user_id (int/str)
-    Devuelve: token, freq_rel, disponibilidad, avg_pos, aparicion, freq_acum
+    """! Calcula estadísticas básicas para tokens.
+
+    Espera columnas: token (str), pos (int), user_id (int/str).
+    Devuelve columnas: token, freq_rel, disponibilidad, avg_pos, aparición, freq_acum.
+
+    @param df DataFrame tokenizado.
+    @param informantes_df DataFrame con informantes (para filtrar user_id).
+    @return DataFrame con estadísticas por token.
     """
 
     if df.empty:
@@ -89,5 +98,10 @@ def estadisticas_df(df: pd.DataFrame, informantes_df: pd.DataFrame = None) -> pd
 
 
 def estadisticas(path: str) -> pd.DataFrame:
+    """! Carga un parquet y devuelve sus estadísticas.
+
+    @param path Ruta al parquet.
+    @return DataFrame con estadísticas por token.
+    """
     df = pd.read_parquet(path)
     return estadisticas_df(df)
