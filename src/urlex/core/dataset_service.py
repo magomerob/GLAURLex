@@ -10,6 +10,7 @@ from typing import Dict, List, Optional
 
 import pandas as pd
 
+
 @dataclass(frozen=True)
 class ProcessedDataset:
     """! Representa un dataset ya procesado (parquets en un directorio).

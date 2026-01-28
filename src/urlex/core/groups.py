@@ -15,6 +15,7 @@ class Group:
         - `filters`: Mapa columna -> regla de filtrado.
         - `immutable`: Si True, no debe persistirse ni sobrescribirse.
     """
+
     name: str
     filters: Dict[str, Any]  # ej: {"ORIGEN": ["LOCAL", "HERENCIA"]}
     immutable: bool = False
