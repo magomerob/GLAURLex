@@ -12,7 +12,16 @@ def main() -> int:
         app_path = os.path.join(sys._MEIPASS, "urlex", "ui", "app.py")
     else:
         app_path = urlex_app.__file__
-    sys.argv = ["streamlit", "run", app_path]
+    sys.argv = [
+        "streamlit",
+        "run",
+        app_path,
+        "--server.port=8501",
+        "--browser.serverPort=8501",
+        "--server.address=localhost",
+        "--browser.serverAddress=localhost",
+        "--browser.gatherUsageStats=false",
+    ]
     return stcli.main()
 
 
