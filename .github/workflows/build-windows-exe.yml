@@ -1,0 +1,47 @@
+name: Build Windows EXE
+
+on:
+  push:
+    branches:
+      - main
+      - 'releases/**'
+      - 'build/**'
+  workflow_dispatch:
+
+jobs:
+  build-exe:
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Poetry
+        run: python -m pip install --upgrade pip poetry
+
+      - name: Configure Poetry (in-project venv)
+        run: poetry config virtualenvs.in-project true
+
+      - name: Install dependencies
+        run: poetry install --no-interaction
+
+      - name: Install PyInstaller
+        run: poetry run pip install pyinstaller
+
+      - name: Build onefile EXE
+        run: poetry run pyinstaller --onefile --name URLex --collect-all streamlit --add-data "src/urlex/ui;urlex/ui" run_urlex.py
+
+      - name: Upload EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: urlex-windows-exe
+          path: dist/URLex.exe
