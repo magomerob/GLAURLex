@@ -12,6 +12,7 @@ def main() -> int:
         app_path = os.path.join(sys._MEIPASS, "urlex", "ui", "app.py")
     else:
         app_path = urlex_app.__file__
+    os.environ["STREAMLIT_GLOBAL_DEVELOPMENT_MODE"] = "false"
     sys.argv = [
         "streamlit",
         "run",
