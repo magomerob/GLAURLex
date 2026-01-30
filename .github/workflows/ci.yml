@@ -19,8 +19,6 @@ jobs:
         id: setup-python
         with:
           python-version: "3.11"
-          cache: "poetry"
-          cache-dependency-path: "poetry.lock"
 
       - name: Install Poetry
         run: pip install poetry
