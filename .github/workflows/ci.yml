@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - main
-      - 'releases/**'
 
 jobs:
   test:
@@ -37,21 +36,6 @@ jobs:
 
       - name: Tests (pytest)
         run: poetry run pytest -q
-
-      - name: Install Doxygen
-        run: sudo apt-get update && sudo apt-get install -y doxygen
-
-      - name: Prepare Doxygen output dir
-        run: mkdir -p build/doxygen
-
-      - name: Generate Doxygen docs (core)
-        run: doxygen Doxyfile
-
-      - name: Upload Doxygen HTML
-        uses: actions/upload-artifact@v4
-        with:
-          name: doxygen-html
-          path: build/doxygen/html
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
