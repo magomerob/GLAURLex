@@ -16,14 +16,24 @@ jobs:
 
       - name: Set up Python
         uses: actions/setup-python@v5
+        id: setup-python
         with:
           python-version: "3.11"
+          cache: "poetry"
+          cache-dependency-path: "poetry.lock"
 
       - name: Install Poetry
         run: pip install poetry
 
       - name: Configure Poetry (in-project venv)
         run: poetry config virtualenvs.in-project true
+
+      - name: Cache .venv
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-py${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('poetry.lock') }}
+          restore-keys: venv-${{ runner.os }}-py${{ steps.setup-python.outputs.python-version }}-
 
       - name: Install dependencies
         run: poetry install --no-interaction
