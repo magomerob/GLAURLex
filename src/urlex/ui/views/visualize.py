@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import matplotlib.pyplot as plt
+import pandas as pd
 import streamlit as st
 
 from urlex.config import DEFAULT_PROCESSED_DIR
 from urlex.core.dataset_service import DatasetService
+from urlex.core.graph import bigrams_for_tema, bigrams_to_unordered
 from urlex.core.groups import ALL_GROUP, apply_group
 from urlex.core.stats import estadisticas_df
 from urlex.ui.state import ensure_groups_loaded_for_dataset, ensure_state
@@ -26,6 +27,12 @@ def compute_stats_cached(df_tema, cache_key: str):
     # cache_key fuerza invalidación si cambias de tema/dataset/grupo
     _ = cache_key
     return estadisticas_df(df_tema)
+
+
+@st.cache_data(show_spinner=False)
+def compute_bigrams_cached(df_tema, cache_key: str):
+    _ = cache_key
+    return bigrams_for_tema(df_tema)
 
 
 def _infer_informant_col(df_tema) -> str | None:
@@ -207,6 +214,41 @@ def render_visualize():
 
     st.divider()
 
+    # Tabla de bigramas
+    st.subheader("Tabla de bigramas (ordenada por aparición)")
+    unordered = st.toggle("Ignorar orden (a,b == b,a)", value=False)
+    with st.spinner("Calculando bigramas del tema..."):
+        bigrams_ordered = compute_bigrams_cached(df_tema_f, cache_key=cache_key)
+
+    if unordered:
+        bigrams_view = bigrams_to_unordered(bigrams_ordered)
+    else:
+        bigrams_view = bigrams_ordered.copy()
+
+    if len(bigrams_view) == 0:
+        bigrams_view = pd.DataFrame(columns=["token_1", "token_2", "aparición", "freq_rel"])
+    else:
+        bigrams_view = bigrams_view.rename(columns={"count": "aparición"})
+        ninf = df_tema_f[informant_col].nunique() if informant_col in df_tema_f.columns else 1
+        bigrams_view["freq_rel"] = bigrams_view["aparición"] / ninf if ninf > 0 else 0.0
+        bigrams_view = bigrams_view.sort_values(
+            ["aparición", "token_1", "token_2"], ascending=[False, True, True]
+        )
+
+    bigrams_top = bigrams_view.head(int(top_n))
+    st.dataframe(
+        bigrams_top,
+        width="stretch",
+        hide_index=True,
+        column_config={
+            "token_1": st.column_config.TextColumn("token_1"),
+            "token_2": st.column_config.TextColumn("token_2"),
+            "aparición": st.column_config.NumberColumn("aparición", format="%.0f"),
+            "freq_rel": st.column_config.NumberColumn("freq_rel", format="%.6f"),
+        },
+    )
+
+    """
     # Gráficos
     st.subheader("Gráficos")
 
@@ -227,3 +269,4 @@ def render_visualize():
     plt.ylabel("freq_acum")
     plt.tight_layout()
     st.pyplot(fig2, clear_figure=True)
+    """
