@@ -1,6 +1,12 @@
+import networkx as nx
 import pandas as pd
 
-from urlex.core.graph import bigrams_for_tema, bigrams_to_unordered
+from urlex.core.graph import (
+    bigrams_for_tema,
+    bigrams_to_dirgraph,
+    bigrams_to_undgraph,
+    bigrams_to_unordered,
+)
 
 
 def _sorted(df: pd.DataFrame) -> pd.DataFrame:
@@ -92,3 +98,48 @@ def test_bigrams_to_unordered():
     )
 
     pd.testing.assert_frame_equal(_sorted(out), _sorted(expected))
+
+
+def test_bigrams_to_dirgraph_weights_and_nodes():
+    df = pd.DataFrame(
+        {
+            "token_1": ["a", "b", "a"],
+            "token_2": ["b", "c", "c"],
+            "count": [2, 1, 4],
+        }
+    )
+
+    out = bigrams_to_dirgraph(df)
+
+    assert isinstance(out, nx.DiGraph)
+    assert set(out.nodes()) == {"a", "b", "c"}
+    assert out.has_edge("a", "b")
+    assert out.has_edge("b", "c")
+    assert out.has_edge("a", "c")
+    assert len(out.edges()) == 3
+    assert out["a"]["b"]["weight"] == 2
+    assert out["b"]["c"]["weight"] == 1
+    assert out["a"]["c"]["weight"] == 4
+
+
+def test_bigrams_to_undgraph_edges():
+    df = pd.DataFrame(
+        {
+            "token_1": ["a", "b", "c"],
+            "token_2": ["b", "a", "d"],
+            "count": [2, 3, 1],
+        }
+    )
+
+    out = bigrams_to_undgraph(df)
+
+    assert isinstance(out, nx.Graph)
+    assert set(out.nodes()) == {"a", "b", "c", "d"}
+    assert out.has_edge("a", "b")
+    assert out.has_edge("b", "a")
+    assert out.has_edge("c", "d")
+    assert out.has_edge("d", "c")
+    assert len(out.edges()) == 2
+    assert out["a"]["b"]["weight"] == 5
+    assert out["b"]["a"]["weight"] == 5
+    assert out["c"]["d"]["weight"] == 1
