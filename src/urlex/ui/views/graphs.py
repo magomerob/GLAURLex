@@ -10,6 +10,7 @@ from urlex.core.graph import (
     bigrams_for_tema,
     bigrams_to_dirgraph,
     bigrams_to_undgraph,
+    graph_stats,
     node_stats,
 )
 from urlex.core.graph_service import GraphService
@@ -82,63 +83,64 @@ def render_graphs():
     if st.session_state.active_group not in st.session_state.groups:
         st.session_state.active_group = "TODOS"
 
-    st.subheader("Grupo de informantes")
-    group_names = list(st.session_state.groups.keys())
-    active_group_name = st.selectbox(
-        "Selecciona un grupo",
-        group_names,
-        index=group_names.index(st.session_state.active_group),
-        key="graphs::group_select",
-    )
-    st.session_state.active_group = active_group_name
-    group = st.session_state.groups[active_group_name]
-
-    informantes_df = getattr(ds, "informantes", None)
-    if informantes_df is None:
-        st.warning("Este dataset no expone ds.informantes; no se podrá filtrar por grupos.")
-        informantes_f = None
-    else:
-        informantes_f = apply_group(informantes_df, group)
-
-    st.subheader("Tema")
-    tema_names = sorted(ds.temas.keys())
-    if not tema_names:
-        st.warning("No hay temas disponibles en este dataset procesado.")
-        return
-
-    default_tema = st.session_state.get("graphs::tema", tema_names[0])
-    if default_tema not in tema_names:
-        default_tema = tema_names[0]
-    tema = st.selectbox("Selecciona un tema", tema_names, index=tema_names.index(default_tema))
-    st.session_state["graphs::tema"] = tema
-
-    df_tema = ds.temas[tema]
-    df_tema_f = df_tema
-    informant_col = _infer_informant_col(df_tema)
-
-    if informantes_f is not None and informant_col is not None:
-        informant_id_col = (
-            "CODIGO_INFORMANTE" if "CODIGO_INFORMANTE" in informantes_f.columns else None
+    with st.expander("Grupo y tema", expanded=True):
+        st.subheader("Grupo de informantes")
+        group_names = list(st.session_state.groups.keys())
+        active_group_name = st.selectbox(
+            "Selecciona un grupo",
+            group_names,
+            index=group_names.index(st.session_state.active_group),
+            key="graphs::group_select",
         )
-        if informant_id_col is None:
-            allowed = set((informantes_f.index + 1).tolist())
+        st.session_state.active_group = active_group_name
+        group = st.session_state.groups[active_group_name]
+
+        informantes_df = getattr(ds, "informantes", None)
+        if informantes_df is None:
+            st.warning("Este dataset no expone ds.informantes; no se podrá filtrar por grupos.")
+            informantes_f = None
         else:
-            allowed = set(informantes_f[informant_id_col].tolist())
-        df_tema_f = df_tema[df_tema[informant_col].isin(allowed)]
-    elif informantes_f is not None and informant_col is None:
-        st.info(
-            "No he encontrado una columna de informante en el df del tema. "
-            "No se aplica el filtro del grupo."
-        )
+            informantes_f = apply_group(informantes_df, group)
 
-    st.caption(
-        f"Filas en tema **{tema}**: {len(df_tema):,} "
-        + (
-            f"→ tras grupo **{active_group_name}**: {len(df_tema_f):,}"
-            if df_tema_f is not df_tema
-            else ""
+        st.subheader("Tema")
+        tema_names = sorted(ds.temas.keys())
+        if not tema_names:
+            st.warning("No hay temas disponibles en este dataset procesado.")
+            return
+
+        default_tema = st.session_state.get("graphs::tema", tema_names[0])
+        if default_tema not in tema_names:
+            default_tema = tema_names[0]
+        tema = st.selectbox("Selecciona un tema", tema_names, index=tema_names.index(default_tema))
+        st.session_state["graphs::tema"] = tema
+
+        df_tema = ds.temas[tema]
+        df_tema_f = df_tema
+        informant_col = _infer_informant_col(df_tema)
+
+        if informantes_f is not None and informant_col is not None:
+            informant_id_col = (
+                "CODIGO_INFORMANTE" if "CODIGO_INFORMANTE" in informantes_f.columns else None
+            )
+            if informant_id_col is None:
+                allowed = set((informantes_f.index + 1).tolist())
+            else:
+                allowed = set(informantes_f[informant_id_col].tolist())
+            df_tema_f = df_tema[df_tema[informant_col].isin(allowed)]
+        elif informantes_f is not None and informant_col is None:
+            st.info(
+                "No he encontrado una columna de informante en el df del tema. "
+                "No se aplica el filtro del grupo."
+            )
+
+        st.caption(
+            f"Filas en tema **{tema}**: {len(df_tema):,} "
+            + (
+                f"→ tras grupo **{active_group_name}**: {len(df_tema_f):,}"
+                if df_tema_f is not df_tema
+                else ""
+            )
         )
-    )
 
     st.subheader("Grafo")
     directed = st.toggle("Grafo dirigido", value=True, key="graphs::directed")
@@ -166,6 +168,36 @@ def render_graphs():
 
     if graph is None:
         return
+        gml_bytes = None
+
+    gml_bytes = None
+    if graph_path.exists():
+        gml_bytes = graph_path.read_bytes()
+
+    actions_col1, actions_col2 = st.columns(2)
+    with actions_col1:
+        st.download_button(
+            "Descargar GML",
+            data=gml_bytes,
+            file_name=graph_path.name,
+            mime="text/plain",
+            disabled=gml_bytes is None,
+            use_container_width=True,
+        )
+    with actions_col2:
+        recalc_clicked = st.button("Recalcular grafo", use_container_width=True)
+
+    if recalc_clicked:
+        with st.spinner("Recalculando grafo..."):
+            bigrams_df = bigrams_for_tema(df_tema_f)
+            graph = bigrams_to_dirgraph(bigrams_df) if directed else bigrams_to_undgraph(bigrams_df)
+            try:
+                graph_service.save_graph(s.dataset_name, graph_name, graph, overwrite=True)
+                st.success(f"Grafo recalculado y guardado: `{graph_path.name}`")
+                gml_bytes = graph_path.read_bytes()
+            except Exception as exc:  # pragma: no cover - capa UI
+                st.error(f"Error recalculando/guardando el GML: {exc}")
+                return
 
     st.subheader("Resumen del grafo")
     c1, c2, c3 = st.columns(3)
@@ -173,21 +205,88 @@ def render_graphs():
     c2.metric("Aristas", f"{graph.number_of_edges():,}")
     c3.metric("Dirigido", "Sí" if graph.is_directed() else "No")
 
-    st.subheader("Estadísticas por nodo")
-    with st.spinner("Calculando estadísticas de nodos..."):
+    with st.spinner("Calculando estadísticas..."):
         stats_df = node_stats(graph)
+        gstats = graph_stats(graph, stats_df)
 
     if len(stats_df) == 0:
         st.info("No hay nodos para mostrar.")
         return
 
-    c1, c2 = st.columns([1, 2])
+    st.subheader("Estadísticas generales")
+    gstats_view = {
+        "Diámetro": [gstats["diameter"]],
+        "Long. camino prom.": [gstats["avg_path_length"]],
+        "Densidad": [gstats["density"]],
+        "Componentes": [gstats["components"]],
+        "Grado prom.": [gstats["avg_degree"]],
+        "Fuerza prom.": [gstats["avg_strength"]],
+        "Clustering prom.": [gstats["avg_clustering"]],
+    }
+    gstats_help = {
+        "Diámetro": "Diámetro de la mayor componente del grafo.",
+        "Long. camino prom.": "Longitud media de caminos más cortos en la mayor componente.",
+        "Densidad": "Densidad del grafo.",
+        "Componentes": "Número de componentes conexas (o débilmente conexas si es dirigido).",
+        "Grado prom.": "Promedio de grado (sin pesos).",
+        "Fuerza prom.": "Promedio de grado ponderado por `weight`.",
+        "Clustering prom.": "Coeficiente de clustering promedio ponderado.",
+    }
+    gstats_column_config = {
+        "Diámetro": st.column_config.NumberColumn("Diámetro", help=gstats_help["Diámetro"]),
+        "Long. camino prom.": st.column_config.NumberColumn(
+            "Long. camino prom.", help=gstats_help["Long. camino prom."], format="%.4f"
+        ),
+        "Densidad": st.column_config.NumberColumn(
+            "Densidad", help=gstats_help["Densidad"], format="%.6f"
+        ),
+        "Componentes": st.column_config.NumberColumn(
+            "Componentes", help=gstats_help["Componentes"]
+        ),
+        "Grado prom.": st.column_config.NumberColumn(
+            "Grado prom.", help=gstats_help["Grado prom."], format="%.4f"
+        ),
+        "Fuerza prom.": st.column_config.NumberColumn(
+            "Fuerza prom.", help=gstats_help["Fuerza prom."], format="%.4f"
+        ),
+        "Clustering prom.": st.column_config.NumberColumn(
+            "Clustering prom.", help=gstats_help["Clustering prom."], format="%.4f"
+        ),
+    }
+    st.dataframe(gstats_view, width="stretch", hide_index=True, column_config=gstats_column_config)
+
+    st.subheader("Estadísticas por nodo")
+    c1 = st.columns([1])[0]
     with c1:
         top_n = st.number_input("Top N", min_value=10, max_value=2000, value=50, step=10)
-    with c2:
+
+    f1, f2, f3 = st.columns([1, 1, 2])
+    strong_component_options = ["Todos"] + sorted(
+        stats_df["strong_component_id"].dropna().astype(int).unique().tolist()
+    )
+    weak_component_options = ["Todos"] + sorted(
+        stats_df["weak_component_id"].dropna().astype(int).unique().tolist()
+    )
+    with f1:
+        selected_strong_component = st.selectbox(
+            "Comp. fuerte",
+            strong_component_options,
+            key="graphs::strong_component_filter",
+        )
+    with f2:
+        selected_weak_component = st.selectbox(
+            "Comp. débil",
+            weak_component_options,
+            key="graphs::weak_component_filter",
+        )
+    with f3:
         query = st.text_input("Filtrar nodo (contiene)", value="")
 
     view = stats_df
+    if selected_strong_component != "Todos":
+        view = view[view["strong_component_id"] == int(selected_strong_component)]
+    if selected_weak_component != "Todos":
+        view = view[view["weak_component_id"] == int(selected_weak_component)]
     if query:
         view = view[view["node"].astype(str).str.contains(query, case=False, na=False)]
     view = view.head(int(top_n))
@@ -202,11 +301,16 @@ def render_graphs():
         "pagerank": "PageRank ponderado (`weight='weight'`, `alpha=0.85`, `tol=1e-6`).",
         "eigenvector": "Centralidad de vector propio ponderada (`weight='weight'`, `max_iter=1000`).",
         "clustering": "Coeficiente de clustering ponderado (`weight='weight'`).",
+        "strong_component_id": "ID de componente fuertemente conexa.",
+        "weak_component_id": "ID de componente débilmente conexa.",
         "in_degree": "Grado entrante no ponderado.",
         "out_degree": "Grado saliente no ponderado.",
         "in_strength": "Grado entrante ponderado (`weight='weight'`).",
         "out_strength": "Grado saliente ponderado (`weight='weight'`).",
     }
+
+    hidden_columns = {"strong_component_id", "weak_component_id"}
+    view_display = view.drop(columns=list(hidden_columns), errors="ignore")
 
     column_config = {
         col: (
@@ -214,25 +318,14 @@ def render_graphs():
             if col == "node"
             else st.column_config.NumberColumn(col, help=column_help[col])
         )
-        for col in view.columns
+        for col in view_display.columns
         if col in column_help
     }
 
-    st.dataframe(view, width="stretch", hide_index=True, column_config=column_config)
+    st.dataframe(view_display, width="stretch", hide_index=True, column_config=column_config)
     st.download_button(
         "Descargar CSV",
         data=view.to_csv(index=False).encode("utf-8"),
         file_name=f"{s.dataset_name}_{tema}_{active_group_name}_node_stats.csv",
         mime="text/csv",
-    )
-
-    gml_bytes = None
-    if graph_path.exists():
-        gml_bytes = graph_path.read_bytes()
-    st.download_button(
-        "Descargar GML",
-        data=gml_bytes,
-        file_name=graph_path.name,
-        mime="text/plain",
-        disabled=gml_bytes is None,
     )

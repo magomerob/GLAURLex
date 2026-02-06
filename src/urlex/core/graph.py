@@ -100,6 +100,8 @@ def node_stats(graph: nx.Graph | nx.DiGraph) -> pd.DataFrame:
     - pagerank: PageRank ponderado (`weight="weight"`, `alpha=0.85`, `tol=1e-6`).
     - eigenvector: centralidad eigenvector ponderada (`weight="weight"`, `max_iter=1000`).
     - clustering: coef. de clustering ponderado (`weight="weight"`).
+    - strong_component_id: ID de componente fuertemente conexa (1..N).
+    - weak_component_id: ID de componente débilmente conexa (1..N).
 
     Columnas extra si el grafo es dirigido:
     - in_degree / out_degree: grado entrante/saliente no ponderado.
@@ -109,7 +111,16 @@ def node_stats(graph: nx.Graph | nx.DiGraph) -> pd.DataFrame:
     @return DataFrame con estadísticas por nodo.
     """
     if graph.number_of_nodes() == 0:
-        columns = ["node", "degree", "strength", "betweenness", "closeness", "pagerank"]
+        columns = [
+            "node",
+            "degree",
+            "strength",
+            "betweenness",
+            "closeness",
+            "pagerank",
+            "strong_component_id",
+            "weak_component_id",
+        ]
         if graph.is_directed():
             columns.extend(["in_degree", "out_degree", "in_strength", "out_strength"])
         return pd.DataFrame(columns=columns)
@@ -126,6 +137,28 @@ def node_stats(graph: nx.Graph | nx.DiGraph) -> pd.DataFrame:
     eigenvector = nx.eigenvector_centrality(graph, weight="weight", max_iter=1000)
     clustering = nx.clustering(graph, weight="weight")
 
+    def _ordered_components(components) -> list[set]:
+        return sorted(components, key=lambda comp: (-len(comp), min(str(n) for n in comp)))
+
+    if graph.is_directed():
+        strong_components = _ordered_components(nx.strongly_connected_components(graph))
+        weak_components = _ordered_components(nx.weakly_connected_components(graph))
+    else:
+        connected_components = _ordered_components(nx.connected_components(graph))
+        strong_components = connected_components
+        weak_components = connected_components
+
+    strong_component_id = {
+        node: comp_id
+        for comp_id, component_nodes in enumerate(strong_components, start=1)
+        for node in component_nodes
+    }
+    weak_component_id = {
+        node: comp_id
+        for comp_id, component_nodes in enumerate(weak_components, start=1)
+        for node in component_nodes
+    }
+
     data = {
         "node": nodes,
         "degree": [degree.get(n, 0) for n in nodes],
@@ -136,6 +169,8 @@ def node_stats(graph: nx.Graph | nx.DiGraph) -> pd.DataFrame:
         "pagerank": [pagerank.get(n, 0.0) for n in nodes],
         "eigenvector": [eigenvector.get(n, 0.0) for n in nodes],
         "clustering": [clustering.get(n, 0.0) for n in nodes],
+        "strong_component_id": [strong_component_id.get(n, 0) for n in nodes],
+        "weak_component_id": [weak_component_id.get(n, 0) for n in nodes],
     }
 
     if graph.is_directed():
@@ -155,3 +190,65 @@ def node_stats(graph: nx.Graph | nx.DiGraph) -> pd.DataFrame:
     out = pd.DataFrame(data)
     out = out.sort_values(["strength", "degree", "node"], ascending=[False, False, True])
     return out
+
+
+def graph_stats(graph: nx.Graph | nx.DiGraph, node_stats_df: pd.DataFrame) -> dict:
+    """! Calcula estadísticas generales del grafo.
+
+    Métricas:
+    - diameter: diámetro de la mayor componente fuertemente conexa (dirigido) o conexa (no dirigido).
+    - avg_clustering: coeficiente de agrupamiento promedio (`nx.average_clustering`, ponderado).
+    - avg_degree: grado promedio (a partir de `node_stats_df["degree"]`).
+    - avg_strength: fuerza promedio (a partir de `node_stats_df["strength"]`).
+    - density: densidad del grafo (`nx.density`).
+    - components: número de componentes (fuertemente conexas si es dirigido, conexas si no).
+    - avg_path_length: longitud de camino promedio sin pesos en la mayor componente conexa.
+
+    @param graph Grafo de NetworkX (dirigido o no).
+    @param node_stats_df DataFrame de estadísticas por nodo (salida de `node_stats`).
+    @return Diccionario con métricas generales del grafo.
+    """
+    n_nodes = graph.number_of_nodes()
+    if n_nodes == 0:
+        return {
+            "diameter": 0,
+            "avg_clustering": 0.0,
+            "avg_degree": 0.0,
+            "avg_strength": 0.0,
+            "density": 0.0,
+            "components": 0,
+            "avg_path_length": 0.0,
+        }
+
+    if graph.is_directed():
+        sccomponents = list(nx.strongly_connected_components(graph))
+        wccomponents = list(nx.weakly_connected_components(graph))
+        largest_nodes = max(sccomponents, key=len)
+        largest = graph.subgraph(largest_nodes).copy()
+    else:
+        sccomponents = list(nx.connected_components(graph))
+        wccomponents = sccomponents
+        largest_nodes = max(sccomponents, key=len)
+        largest = graph.subgraph(largest_nodes).copy()
+
+    if largest.number_of_nodes() <= 1:
+        diameter = 0
+        avg_path_length = 0.0
+    else:
+        diameter = nx.diameter(largest)
+        avg_path_length = nx.average_shortest_path_length(largest)
+
+    avg_degree = float(node_stats_df["degree"].mean() / 2) if "degree" in node_stats_df else 0.0
+    avg_strength = (
+        float(node_stats_df["strength"].mean() / 2) if "strength" in node_stats_df else 0.0
+    )
+
+    return {
+        "diameter": diameter,
+        "avg_clustering": float(nx.average_clustering(graph, weight="weight")),
+        "avg_degree": avg_degree,
+        "avg_strength": avg_strength,
+        "density": float(nx.density(graph)),
+        "components": len(wccomponents),
+        "avg_path_length": avg_path_length,
+    }
