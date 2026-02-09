@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from urlex.ui.state import ensure_state, has_dataset_loaded
+from urlex.ui.state import ensure_state, has_dataset_loaded, sync_query_state
 
 # Páginas
 from urlex.ui.views.graphs import render_graphs
@@ -48,7 +48,43 @@ def main():
             "Grafos (bloqueado)",
         ]
 
-    page = st.sidebar.radio("Ir a:", options, index=0, key="nav_page")
+    page_token_to_prefix = {
+        "load": "Carga de datos",
+        "groups": "Grupos",
+        "stats": "Estadísticas",
+        "graphs": "Grafos",
+    }
+    page_prefix_to_token = {v: k for k, v in page_token_to_prefix.items()}
+
+    requested_token = sync_query_state(
+        key="app::page_token",
+        param="page",
+        default="load",
+        allowed_values=page_token_to_prefix.keys(),
+    )
+    requested_prefix = page_token_to_prefix.get(requested_token, "Carga de datos")
+    default_page = next((opt for opt in options if opt.startswith(requested_prefix)), options[0])
+
+    if "nav_page" not in st.session_state or st.session_state["nav_page"] not in options:
+        st.session_state["nav_page"] = default_page
+
+    page = st.sidebar.radio(
+        "Ir a:",
+        options,
+        index=options.index(st.session_state["nav_page"]),
+        key="nav_page",
+    )
+    current_token = next(
+        (token for prefix, token in page_prefix_to_token.items() if page.startswith(prefix)),
+        "load",
+    )
+    st.session_state["app::page_token"] = current_token
+    sync_query_state(
+        key="app::page_token",
+        param="page",
+        default="load",
+        allowed_values=page_token_to_prefix.keys(),
+    )
 
     if page.startswith("Carga de datos"):
         render_load_data()

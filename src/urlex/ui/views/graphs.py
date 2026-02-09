@@ -15,7 +15,11 @@ from urlex.core.graph import (
 )
 from urlex.core.graph_service import GraphService
 from urlex.core.groups import ALL_GROUP, apply_group
-from urlex.ui.state import ensure_groups_loaded_for_dataset, ensure_state
+from urlex.ui.state import (
+    ensure_groups_loaded_for_dataset,
+    ensure_state,
+    sync_query_state,
+)
 
 
 @st.cache_resource
@@ -86,10 +90,16 @@ def render_graphs():
     with st.expander("Grupo y tema", expanded=True):
         st.subheader("Grupo de informantes")
         group_names = list(st.session_state.groups.keys())
+        sync_query_state(
+            key="graphs::group_select",
+            param="g_group",
+            default=st.session_state.active_group,
+            allowed_values=group_names,
+        )
         active_group_name = st.selectbox(
             "Selecciona un grupo",
             group_names,
-            index=group_names.index(st.session_state.active_group),
+            index=group_names.index(st.session_state["graphs::group_select"]),
             key="graphs::group_select",
         )
         st.session_state.active_group = active_group_name
@@ -108,11 +118,18 @@ def render_graphs():
             st.warning("No hay temas disponibles en este dataset procesado.")
             return
 
-        default_tema = st.session_state.get("graphs::tema", tema_names[0])
-        if default_tema not in tema_names:
-            default_tema = tema_names[0]
-        tema = st.selectbox("Selecciona un tema", tema_names, index=tema_names.index(default_tema))
-        st.session_state["graphs::tema"] = tema
+        sync_query_state(
+            key="graphs::tema",
+            param="g_tema",
+            default=st.session_state.get("graphs::tema", tema_names[0]),
+            allowed_values=tema_names,
+        )
+        tema = st.selectbox(
+            "Selecciona un tema",
+            tema_names,
+            index=tema_names.index(st.session_state["graphs::tema"]),
+            key="graphs::tema",
+        )
 
         df_tema = ds.temas[tema]
         df_tema_f = df_tema
@@ -143,6 +160,13 @@ def render_graphs():
         )
 
     st.subheader("Grafo")
+    sync_query_state(
+        key="graphs::directed",
+        param="g_directed",
+        default=True,
+        parse=lambda raw: raw.strip().lower() in {"1", "true", "t", "yes", "y", "on"},
+        serialize=lambda value: "1" if value else "0",
+    )
     directed = st.toggle("Grafo dirigido", value=True, key="graphs::directed")
     graph = None
     graph_service = get_graph_service(processed_dir)
@@ -258,7 +282,20 @@ def render_graphs():
     st.subheader("Estadísticas por nodo")
     c1 = st.columns([1])[0]
     with c1:
-        top_n = st.number_input("Top N", min_value=10, max_value=2000, value=50, step=10)
+        sync_query_state(
+            key="graphs::top_n",
+            param="g_top_n",
+            default=50,
+            parse=int,
+            normalize=lambda v: max(10, min(2000, int(v))),
+        )
+        top_n = st.number_input(
+            "Top N",
+            min_value=10,
+            max_value=2000,
+            step=10,
+            key="graphs::top_n",
+        )
 
     f1, f2, f3 = st.columns([1, 1, 2])
     strong_component_options = ["Todos"] + sorted(
@@ -267,6 +304,26 @@ def render_graphs():
     weak_component_options = ["Todos"] + sorted(
         stats_df["weak_component_id"].dropna().astype(int).unique().tolist()
     )
+    sync_query_state(
+        key="graphs::strong_component_filter",
+        param="g_strong",
+        default="Todos",
+        parse=lambda raw: int(raw) if raw.strip().isdigit() else "Todos",
+        allowed_values=strong_component_options,
+    )
+    sync_query_state(
+        key="graphs::weak_component_filter",
+        param="g_weak",
+        default="Todos",
+        parse=lambda raw: int(raw) if raw.strip().isdigit() else "Todos",
+        allowed_values=weak_component_options,
+    )
+    sync_query_state(
+        key="graphs::query",
+        param="g_query",
+        default="",
+    )
+
     with f1:
         selected_strong_component = st.selectbox(
             "Comp. fuerte",
@@ -280,7 +337,7 @@ def render_graphs():
             key="graphs::weak_component_filter",
         )
     with f3:
-        query = st.text_input("Filtrar nodo (contiene)", value="")
+        query = st.text_input("Filtrar nodo (contiene)", key="graphs::query")
 
     view = stats_df
     if selected_strong_component != "Todos":
