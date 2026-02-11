@@ -10,7 +10,9 @@ from urlex.core.graph import (
     bigrams_for_tema,
     bigrams_to_dirgraph,
     bigrams_to_undgraph,
+    connected_components_sorted,
     graph_stats,
+    is_graph_connected,
     node_stats,
     small_world_indices,
 )
@@ -401,19 +403,66 @@ def render_graphs():
         st.info("Solo disponible para grafos no dirigidos.")
         return
 
-    sw_cache_key = (
-        f"{s.dataset_name}::{graph_name}::{graph.number_of_nodes()}::{graph.number_of_edges()}"
-    )
-    sw_state_key = f"graphs::small_world::{sw_cache_key}"
     st.warning(
         "El cálculo de índices small-world puede tardar bastante tiempo en grafos grandes.",
         icon="⚠️",
     )
-    calculate_sw = st.button("Calcular índices Small-world", use_container_width=True)
+
+    target_graph = None
+    target_label = "grafo completo"
+    component_suffix = "full"
+
+    if graph.number_of_nodes() < 2:
+        st.info("Se necesitan al menos 2 nodos para calcular índices small-world.")
+    elif is_graph_connected(graph):
+        target_graph = graph
+    else:
+        st.info(
+            "El grafo no es conexo. Selecciona una componente conexa para habilitar el cálculo."
+        )
+        components = connected_components_sorted(graph)
+        component_labels = [
+            f"Componente {idx} ({len(nodes):,} nodos)"
+            for idx, nodes in enumerate(components, start=1)
+        ]
+        selection = st.selectbox(
+            "Componente conexa para small-world",
+            ["Selecciona una componente"] + component_labels,
+            key=f"graphs::sw_component::{graph_name}",
+        )
+        if selection != "Selecciona una componente":
+            selected_idx = component_labels.index(selection) + 1
+            selected_nodes = components[selected_idx - 1]
+            target_graph = graph.subgraph(selected_nodes).copy()
+            target_label = selection
+            component_suffix = f"cc{selected_idx}"
+            st.caption(f"Cálculo sobre: {selection}.")
+
+    button_disabled = target_graph is None
+    calculate_sw = st.button(
+        "Calcular índices Small-world",
+        use_container_width=True,
+        disabled=button_disabled,
+    )
+
+    if target_graph is not None and not is_graph_connected(target_graph):
+        st.error("La selección no es conexa; no se pueden calcular índices small-world.")
+        return
+
+    if target_graph is None:
+        st.caption("El botón se habilita cuando haya un grafo conexo válido.")
+        return
+
+    sw_cache_key = (
+        f"{s.dataset_name}::{graph_name}::{component_suffix}::"
+        f"{target_graph.number_of_nodes()}::{target_graph.number_of_edges()}"
+    )
+    sw_state_key = f"graphs::small_world::{sw_cache_key}"
+
     if calculate_sw:
         with st.spinner("Calculando índices de small-world..."):
             st.session_state[sw_state_key] = compute_small_world_indices_cached(
-                sw_cache_key, _graph=graph
+                sw_cache_key, _graph=target_graph
             )
 
     small_world = st.session_state.get(sw_state_key, {})
@@ -421,6 +470,7 @@ def render_graphs():
         st.caption("Pulsa el botón para calcular y mostrar SWI y ω'.")
         return
 
+    st.caption(f"Resultado mostrado para: {target_label}.")
     sw1, sw2 = st.columns(2)
     swi = small_world.get("SWI")
     omega = small_world.get("ω'")

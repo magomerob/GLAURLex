@@ -201,12 +201,16 @@ def small_world_indices(graph: nx.Graph | nx.DiGraph) -> dict:
     if graph.is_directed() or graph.number_of_nodes() <= 1:
         return {}
 
+    L = nx.average_shortest_path_length(graph)
+    C = nx.average_clustering(graph)
+
     Cl = -1
     Cr = -1
     Ll = 0.0
     Lr = 0.0
     n = 10
-    for _ in range(n):
+    for i in range(n):
+        print(i, "/10")
         lat = nx.algorithms.smallworld.lattice_reference(graph, niter=5, seed=42)
         rand = nx.algorithms.smallworld.random_reference(graph, niter=10, seed=42)
 
@@ -218,13 +222,33 @@ def small_world_indices(graph: nx.Graph | nx.DiGraph) -> dict:
     if Cl <= 0 or (Lr - Ll) == 0 or (Cl - Cr) == 0:
         return {}
 
-    L = nx.average_shortest_path_length(graph)
-    C = nx.average_clustering(graph)
-
     w = (Lr / L) - (C / Cl)
     swi = ((L / Ll) / (Lr - Ll)) * ((C - Cr) / (Cl - Cr))
 
     return {"ω'": 1 - abs(w), "SWI": swi}
+
+
+def is_graph_connected(graph: nx.Graph | nx.DiGraph) -> bool:
+    """! Comprueba si el grafo es conexo.
+
+    Para grafos dirigidos evalúa conectividad débil.
+    """
+    if graph.number_of_nodes() == 0:
+        return False
+    if graph.is_directed():
+        return nx.is_weakly_connected(graph)
+    return nx.is_connected(graph)
+
+
+def connected_components_sorted(graph: nx.Graph | nx.DiGraph) -> list[set]:
+    """! Devuelve componentes ordenadas por tamaño desc y etiqueta mínima asc."""
+    if graph.number_of_nodes() == 0:
+        return []
+    if graph.is_directed():
+        components = nx.weakly_connected_components(graph)
+    else:
+        components = nx.connected_components(graph)
+    return sorted(components, key=lambda comp: (-len(comp), min(str(n) for n in comp)))
 
 
 def graph_stats(
