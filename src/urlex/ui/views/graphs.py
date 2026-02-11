@@ -12,6 +12,7 @@ from urlex.core.graph import (
     bigrams_to_undgraph,
     graph_stats,
     node_stats,
+    small_world_indices,
 )
 from urlex.core.graph_service import GraphService
 from urlex.core.groups import ALL_GROUP, apply_group
@@ -44,6 +45,12 @@ def compute_bigrams_cached(df_tema, cache_key: str):
     return bigrams_for_tema(df_tema)
 
 
+@st.cache_data(show_spinner=False)
+def compute_small_world_indices_cached(cache_key: str, _graph) -> dict:
+    _ = cache_key
+    return small_world_indices(_graph)
+
+
 def _infer_informant_col(df_tema) -> str | None:
     candidates = [
         "CODIGO_INFORMANTE",
@@ -72,7 +79,7 @@ def render_graphs():
     s = ensure_state()
     ensure_groups_loaded_for_dataset(s.dataset_name)
 
-    st.header("3) Grafos")
+    st.header("Grafos")
     st.write(f"Dataset activo: **{s.dataset_name}**")
 
     processed_dir = st.session_state.get("DatasetService::processed_dir", DEFAULT_PROCESSED_DIR)
@@ -167,7 +174,7 @@ def render_graphs():
         parse=lambda raw: raw.strip().lower() in {"1", "true", "t", "yes", "y", "on"},
         serialize=lambda value: "1" if value else "0",
     )
-    directed = st.toggle("Grafo dirigido", value=True, key="graphs::directed")
+    directed = st.toggle("Grafo dirigido", key="graphs::directed")
     graph = None
     graph_service = get_graph_service(processed_dir)
     graph_name = _slug_graph_name(tema, active_group_name, "dir" if directed else "und")
@@ -231,7 +238,7 @@ def render_graphs():
 
     with st.spinner("Calculando estadísticas..."):
         stats_df = node_stats(graph)
-        gstats = graph_stats(graph, stats_df)
+        gstats = graph_stats(graph, stats_df, include_small_world=False)
 
     if len(stats_df) == 0:
         st.info("No hay nodos para mostrar.")
@@ -364,6 +371,8 @@ def render_graphs():
         "out_degree": "Grado saliente no ponderado.",
         "in_strength": "Grado entrante ponderado (`weight='weight'`).",
         "out_strength": "Grado saliente ponderado (`weight='weight'`).",
+        "SWI": "Small-worldness index.",
+        "ω'": "omega de small world normalizada",
     }
 
     hidden_columns = {"strong_component_id", "weak_component_id"}
@@ -386,3 +395,34 @@ def render_graphs():
         file_name=f"{s.dataset_name}_{tema}_{active_group_name}_node_stats.csv",
         mime="text/csv",
     )
+
+    st.subheader("Índices Small-world")
+    if graph.is_directed():
+        st.info("Solo disponible para grafos no dirigidos.")
+        return
+
+    sw_cache_key = (
+        f"{s.dataset_name}::{graph_name}::{graph.number_of_nodes()}::{graph.number_of_edges()}"
+    )
+    sw_state_key = f"graphs::small_world::{sw_cache_key}"
+    st.warning(
+        "El cálculo de índices small-world puede tardar bastante tiempo en grafos grandes.",
+        icon="⚠️",
+    )
+    calculate_sw = st.button("Calcular índices Small-world", use_container_width=True)
+    if calculate_sw:
+        with st.spinner("Calculando índices de small-world..."):
+            st.session_state[sw_state_key] = compute_small_world_indices_cached(
+                sw_cache_key, _graph=graph
+            )
+
+    small_world = st.session_state.get(sw_state_key, {})
+    if not small_world:
+        st.caption("Pulsa el botón para calcular y mostrar SWI y ω'.")
+        return
+
+    sw1, sw2 = st.columns(2)
+    swi = small_world.get("SWI")
+    omega = small_world.get("ω'")
+    sw1.metric("SWI", f"{swi:.4f}" if isinstance(swi, (int, float)) else "N/A")
+    sw2.metric("ω'", f"{omega:.4f}" if isinstance(omega, (int, float)) else "N/A")

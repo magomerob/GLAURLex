@@ -192,7 +192,44 @@ def node_stats(graph: nx.Graph | nx.DiGraph) -> pd.DataFrame:
     return out
 
 
-def graph_stats(graph: nx.Graph | nx.DiGraph, node_stats_df: pd.DataFrame) -> dict:
+def small_world_indices(graph: nx.Graph | nx.DiGraph) -> dict:
+    """! Calcula índices de small-world para grafos no dirigidos.
+
+    @param graph Grafo de NetworkX (dirigido o no).
+    @return Diccionario con SWI y ω' (vacío si el grafo es dirigido o no aplica).
+    """
+    if graph.is_directed() or graph.number_of_nodes() <= 1:
+        return {}
+
+    Cl = -1
+    Cr = -1
+    Ll = 0.0
+    Lr = 0.0
+    n = 10
+    for _ in range(n):
+        lat = nx.algorithms.smallworld.lattice_reference(graph, niter=5, seed=42)
+        rand = nx.algorithms.smallworld.random_reference(graph, niter=10, seed=42)
+
+        Cl = max(Cl, nx.average_clustering(lat))
+        Cr = max(Cr, nx.average_clustering(rand))
+        Ll += nx.average_shortest_path_length(lat) / n
+        Lr += nx.average_shortest_path_length(rand) / n
+
+    if Cl <= 0 or (Lr - Ll) == 0 or (Cl - Cr) == 0:
+        return {}
+
+    L = nx.average_shortest_path_length(graph)
+    C = nx.average_clustering(graph)
+
+    w = (Lr / L) - (C / Cl)
+    swi = ((L / Ll) / (Lr - Ll)) * ((C - Cr) / (Cl - Cr))
+
+    return {"ω'": 1 - abs(w), "SWI": swi}
+
+
+def graph_stats(
+    graph: nx.Graph | nx.DiGraph, node_stats_df: pd.DataFrame, include_small_world: bool = False
+) -> dict:
     """! Calcula estadísticas generales del grafo.
 
     Métricas:
@@ -204,8 +241,13 @@ def graph_stats(graph: nx.Graph | nx.DiGraph, node_stats_df: pd.DataFrame) -> di
     - components: número de componentes (fuertemente conexas si es dirigido, conexas si no).
     - avg_path_length: longitud de camino promedio sin pesos en la mayor componente conexa.
 
+    Si es no dirigido (y `include_small_world=True`):
+    - SWI: Small-worldness index.
+    - ω': omega de small world normalizada
+
     @param graph Grafo de NetworkX (dirigido o no).
     @param node_stats_df DataFrame de estadísticas por nodo (salida de `node_stats`).
+    @param include_small_world Si `True`, añade SWI y ω' para grafos no dirigidos.
     @return Diccionario con métricas generales del grafo.
     """
     n_nodes = graph.number_of_nodes()
@@ -243,7 +285,7 @@ def graph_stats(graph: nx.Graph | nx.DiGraph, node_stats_df: pd.DataFrame) -> di
         float(node_stats_df["strength"].mean() / 2) if "strength" in node_stats_df else 0.0
     )
 
-    return {
+    ret = {
         "diameter": diameter,
         "avg_clustering": float(nx.average_clustering(graph, weight="weight")),
         "avg_degree": avg_degree,
@@ -252,3 +294,8 @@ def graph_stats(graph: nx.Graph | nx.DiGraph, node_stats_df: pd.DataFrame) -> di
         "components": len(wccomponents),
         "avg_path_length": avg_path_length,
     }
+
+    if include_small_world:
+        ret.update(small_world_indices(graph))
+
+    return ret
