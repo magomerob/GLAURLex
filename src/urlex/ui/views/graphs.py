@@ -307,9 +307,14 @@ def render_graphs():
         )
 
     f1, f2, f3 = st.columns([1, 1, 2])
-    strong_component_options = ["Todos"] + sorted(
-        stats_df["strong_component_id"].dropna().astype(int).unique().tolist()
+    strong_component_sizes = (
+        stats_df.groupby("strong_component_id", dropna=True)["node"].size().to_dict()
     )
+    strong_component_ids = stats_df["strong_component_id"].dropna().astype(int).unique().tolist()
+    strong_component_ids.sort(
+        key=lambda comp_id: (-strong_component_sizes.get(comp_id, 0), comp_id)
+    )
+    strong_component_options = ["Todos"] + strong_component_ids
     weak_component_options = ["Todos"] + sorted(
         stats_df["weak_component_id"].dropna().astype(int).unique().tolist()
     )
