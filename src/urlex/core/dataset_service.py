@@ -10,6 +10,8 @@ from typing import Dict, List, Optional
 
 import pandas as pd
 
+from urlex.core.graph import bigrams_for_tema
+
 
 @dataclass(frozen=True)
 class ProcessedDataset:
@@ -171,6 +173,10 @@ class DatasetService:
         if not f.exists():
             raise FileNotFoundError(f"No existe el tema '{tema}' en {root}")
         return pd.read_parquet(f)
+
+    def bigrams_for_tema(self, dataset_name: str, tema: str) -> pd.DataFrame:
+        df = self.load_tema(dataset_name, tema)
+        return bigrams_for_tema(df)
 
     def list_temas(self, dataset_name: str) -> List[str]:
         """! Lista los temas disponibles (parquets excepto informantes).

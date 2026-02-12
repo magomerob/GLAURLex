@@ -7,7 +7,7 @@ import streamlit as st
 
 from urlex.config import DEFAULT_PROCESSED_DIR
 from urlex.core.dataset_service import DatasetService
-from urlex.ui.state import ensure_state
+from urlex.ui.state import ensure_state, set_query_param, sync_query_state
 
 
 @st.cache_resource
@@ -20,11 +20,17 @@ def render_load_data():
 
     st.header("Carga de datos")
 
+    sync_query_state(
+        key="load_data::processed_dir",
+        param="processed_dir",
+        default=str(DEFAULT_PROCESSED_DIR),
+    )
     processed_dir = st.text_input(
         "Directorio de datasets procesados",
-        value=str(DEFAULT_PROCESSED_DIR),
+        key="load_data::processed_dir",
         help="Aquí se guardan (y se buscan) los directorios con parquets.",
     )
+    st.session_state["processed_dir"] = processed_dir
     service = get_dataset_service(processed_dir)
 
     col1, col2 = st.columns(2, gap="large")
@@ -65,6 +71,7 @@ def render_load_data():
                     overwrite=overwrite,
                 )
                 s.dataset_name = name
+                set_query_param("dataset", name)
                 st.success(f"Procesado OK. Dataset activo: **{name}**")
                 st.rerun()
 
@@ -85,6 +92,7 @@ def render_load_data():
             choice = st.selectbox("Datasets disponibles", options=names, index=0)
             if st.button("Usar este dataset"):
                 s.dataset_name = choice
+                set_query_param("dataset", choice)
                 st.success(f"Dataset activo: **{choice}**")
                 st.rerun()
     st.divider()
@@ -100,6 +108,7 @@ def render_load_data():
 
         if st.button("Descargar dataset (desactivar)"):
             s.dataset_name = None
+            set_query_param("dataset", None)
             st.info("Dataset desactivado. Visualización y Grafos quedan bloqueados.")
             st.rerun()
     else:

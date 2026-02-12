@@ -1,13 +1,18 @@
 from __future__ import annotations
 
-import matplotlib.pyplot as plt
+import pandas as pd
 import streamlit as st
 
 from urlex.config import DEFAULT_PROCESSED_DIR
 from urlex.core.dataset_service import DatasetService
+from urlex.core.graph import bigrams_for_tema, bigrams_to_unordered
 from urlex.core.groups import ALL_GROUP, apply_group
 from urlex.core.stats import estadisticas_df
-from urlex.ui.state import ensure_groups_loaded_for_dataset, ensure_state
+from urlex.ui.state import (
+    ensure_groups_loaded_for_dataset,
+    ensure_state,
+    sync_query_state,
+)
 
 
 @st.cache_resource
@@ -26,6 +31,12 @@ def compute_stats_cached(df_tema, cache_key: str):
     # cache_key fuerza invalidación si cambias de tema/dataset/grupo
     _ = cache_key
     return estadisticas_df(df_tema)
+
+
+@st.cache_data(show_spinner=False)
+def compute_bigrams_cached(df_tema, cache_key: str):
+    _ = cache_key
+    return bigrams_for_tema(df_tema)
 
 
 def _infer_informant_col(df_tema) -> str | None:
@@ -73,10 +84,16 @@ def render_visualize():
     # Selector de grupo
     st.subheader("Grupo de informantes")
     group_names = list(st.session_state.groups.keys())
+    sync_query_state(
+        key="visualize::group_select",
+        param="v_group",
+        default=st.session_state.active_group,
+        allowed_values=group_names,
+    )
     active_group_name = st.selectbox(
         "Selecciona un grupo",
         group_names,
-        index=group_names.index(st.session_state.active_group),
+        index=group_names.index(st.session_state["visualize::group_select"]),
         key="visualize::group_select",
     )
     st.session_state.active_group = active_group_name
@@ -108,13 +125,19 @@ def render_visualize():
         st.warning("No hay temas disponibles en este dataset procesado.")
         return
 
-    # recuerda selección
-    default_tema = st.session_state.get("visualize::tema", tema_names[0])
-    if default_tema not in tema_names:
-        default_tema = tema_names[0]
+    sync_query_state(
+        key="visualize::tema",
+        param="v_tema",
+        default=st.session_state.get("visualize::tema", tema_names[0]),
+        allowed_values=tema_names,
+    )
 
-    tema = st.selectbox("Selecciona un tema", tema_names, index=tema_names.index(default_tema))
-    st.session_state["visualize::tema"] = tema
+    tema = st.selectbox(
+        "Selecciona un tema",
+        tema_names,
+        index=tema_names.index(st.session_state["visualize::tema"]),
+        key="visualize::tema",
+    )
 
     df_tema = ds.temas[tema]
 
@@ -149,13 +172,42 @@ def render_visualize():
     )
 
     # Controles
+    sync_query_state(
+        key="visualize::top_n",
+        param="v_top_n",
+        default=50,
+        parse=int,
+        normalize=lambda v: max(10, min(2000, int(v))),
+    )
+    sync_query_state(
+        key="visualize::min_ap",
+        param="v_min_ap",
+        default=0.0,
+        parse=float,
+        normalize=lambda v: max(0.0, min(1.0, float(v))),
+    )
+    sync_query_state(
+        key="visualize::query",
+        param="v_query",
+        default="",
+    )
+    sync_query_state(
+        key="visualize::unordered",
+        param="v_unordered",
+        default=False,
+        parse=lambda raw: raw.strip().lower() in {"1", "true", "t", "yes", "y", "on"},
+        serialize=lambda value: "1" if value else "0",
+    )
+
     c1, c2, c3 = st.columns([1, 1, 2])
     with c1:
-        top_n = st.number_input("Top N", min_value=10, max_value=2000, value=50, step=10)
+        top_n = st.number_input(
+            "Top N", min_value=10, max_value=2000, step=10, key="visualize::top_n"
+        )
     with c2:
-        min_ap = st.slider("Aparición mínima", 0.0, 1.0, 0.0, 0.01)
+        min_ap = st.slider("Aparición mínima", 0.0, 1.0, key="visualize::min_ap", step=0.01)
     with c3:
-        query = st.text_input("Filtrar token (contiene)", value="")
+        query = st.text_input("Filtrar token (contiene)", key="visualize::query")
 
     # Calcular estadísticas
     # cache_key para que el caché distinga dataset + tema + grupo + tamaño filtrado
@@ -207,6 +259,41 @@ def render_visualize():
 
     st.divider()
 
+    # Tabla de bigramas
+    st.subheader("Tabla de bigramas (ordenada por aparición)")
+    unordered = st.toggle("Ignorar orden (a,b == b,a)", key="visualize::unordered")
+    with st.spinner("Calculando bigramas del tema..."):
+        bigrams_ordered = compute_bigrams_cached(df_tema_f, cache_key=cache_key)
+
+    if unordered:
+        bigrams_view = bigrams_to_unordered(bigrams_ordered)
+    else:
+        bigrams_view = bigrams_ordered.copy()
+
+    if len(bigrams_view) == 0:
+        bigrams_view = pd.DataFrame(columns=["token_1", "token_2", "aparición", "freq_rel"])
+    else:
+        bigrams_view = bigrams_view.rename(columns={"count": "aparición"})
+        ninf = df_tema_f[informant_col].nunique() if informant_col in df_tema_f.columns else 1
+        bigrams_view["freq_rel"] = bigrams_view["aparición"] / ninf if ninf > 0 else 0.0
+        bigrams_view = bigrams_view.sort_values(
+            ["aparición", "token_1", "token_2"], ascending=[False, True, True]
+        )
+
+    bigrams_top = bigrams_view.head(int(top_n))
+    st.dataframe(
+        bigrams_top,
+        width="stretch",
+        hide_index=True,
+        column_config={
+            "token_1": st.column_config.TextColumn("token_1"),
+            "token_2": st.column_config.TextColumn("token_2"),
+            "aparición": st.column_config.NumberColumn("aparición", format="%.0f"),
+            "freq_rel": st.column_config.NumberColumn("freq_rel", format="%.6f"),
+        },
+    )
+
+    """
     # Gráficos
     st.subheader("Gráficos")
 
@@ -227,3 +314,4 @@ def render_visualize():
     plt.ylabel("freq_acum")
     plt.tight_layout()
     st.pyplot(fig2, clear_figure=True)
+    """
