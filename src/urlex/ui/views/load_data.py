@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
+from typing import Dict
 
 import streamlit as st
 
@@ -13,6 +14,27 @@ from urlex.ui.state import ensure_state, set_query_param, sync_query_state
 @st.cache_resource
 def get_dataset_service(processed_dir: str) -> DatasetService:
     return DatasetService(processed_dir)
+
+
+def _parse_salamanca_stimulus_map(raw_text: str) -> Dict[str, str]:
+    mapping: Dict[str, str] = {}
+    for i, line in enumerate(raw_text.splitlines(), start=1):
+        row = line.strip()
+        if not row:
+            continue
+        if "=" not in row:
+            raise ValueError(
+                f"Línea {i}: formato inválido. Usa `codigo=estimulo`, por ejemplo `1=CASA`."
+            )
+        code, stimulus = row.split("=", 1)
+        code = code.strip()
+        stimulus = stimulus.strip()
+        if not code:
+            raise ValueError(f"Línea {i}: el código está vacío.")
+        if not stimulus:
+            raise ValueError(f"Línea {i}: el estímulo está vacío.")
+        mapping[code] = stimulus
+    return mapping
 
 
 def render_load_data():
@@ -36,14 +58,32 @@ def render_load_data():
     col1, col2 = st.columns(2, gap="large")
 
     # -----------------------
-    # A) Subir XLSX y procesar
+    # A) Subir archivo y procesar
     # -----------------------
     with col1:
-        st.subheader("A) Subir XLSX y procesar")
+        st.subheader("A) Subir archivo y procesar")
+
+        input_format = st.selectbox(
+            "Formato de entrada",
+            options=["xlsx", "salamanca"],
+            index=0,
+            help="Selecciona el formato del archivo que vas a subir.",
+        )
+
+        if input_format == "xlsx":
+            upload_label = "Sube un archivo .xlsx"
+            upload_types = ["xlsx"]
+            process_button_label = "Procesar XLSX"
+            default_uploaded_name = "uploaded.xlsx"
+        else:
+            upload_label = "Sube un archivo .txt (Salamanca)"
+            upload_types = ["txt"]
+            process_button_label = "Procesar Salamanca"
+            default_uploaded_name = "uploaded.txt"
 
         uploaded = st.file_uploader(
-            "Sube un archivo .xlsx",
-            type=["xlsx"],
+            upload_label,
+            type=upload_types,
             accept_multiple_files=False,
         )
 
@@ -54,29 +94,58 @@ def render_load_data():
         )
 
         overwrite = st.checkbox("Sobrescribir si ya existe", value=False)
+        salamanca_map: Dict[str, str] | None = None
 
-        if st.button("Procesar XLSX", disabled=(uploaded is None)):
+        if input_format == "salamanca":
+            with st.expander("Diccionario código -> estímulo (opcional)"):
+                st.caption("Una línea por par con formato `codigo=estimulo`.")
+                raw_map_text = st.text_area(
+                    "Correspondencias",
+                    value="",
+                    placeholder="1=CASA\n2=PERRO\n3=AGUA",
+                    height=140,
+                )
+                if raw_map_text.strip():
+                    try:
+                        salamanca_map = _parse_salamanca_stimulus_map(raw_map_text)
+                        st.caption(f"Entradas válidas: {len(salamanca_map)}")
+                    except ValueError as parse_error:
+                        st.error(str(parse_error))
+                        salamanca_map = None
+
+        if st.button(process_button_label, disabled=(uploaded is None)):
             # Usamos un tmp real en el sistema
             # Streamlit no da un tmp global directamente, así que creamos uno en processed_dir/.tmp_uploads
             tmp_base = Path(processed_dir) / ".tmp_uploads"
             tmp_base.mkdir(parents=True, exist_ok=True)
 
-            xlsx_path = tmp_base / (uploaded.name or "uploaded.xlsx")
-            xlsx_path.write_bytes(uploaded.getvalue())
+            input_path = tmp_base / (uploaded.name or default_uploaded_name)
+            input_path.write_bytes(uploaded.getvalue())
 
             try:
-                name = service.process_xlsx(
-                    xlsx_path=xlsx_path,
-                    dataset_name=(dataset_name.strip() or None),
-                    overwrite=overwrite,
-                )
+                if input_format == "xlsx":
+                    name = service.process_xlsx(
+                        xlsx_path=input_path,
+                        dataset_name=(dataset_name.strip() or None),
+                        overwrite=overwrite,
+                    )
+                else:
+                    if raw_map_text.strip() and salamanca_map is None:
+                        raise ValueError("El diccionario de correspondencias tiene errores de formato.")
+                    name = service.process_salamanca(
+                        txt_path=input_path,
+                        dataset_name=(dataset_name.strip() or None),
+                        overwrite=overwrite,
+                        stimulus_map=salamanca_map,
+                    )
+
                 s.dataset_name = name
                 set_query_param("dataset", name)
                 st.success(f"Procesado OK. Dataset activo: **{name}**")
                 st.rerun()
 
             except Exception as e:
-                st.error(f"Error procesando XLSX: {e}")
+                st.error(f"Error procesando {input_format}: {e}")
 
             shutil.rmtree(tmp_base)
     # -----------------------

@@ -114,6 +114,48 @@ class DatasetService:
         self._validate_processed_dir(out_dir)
         return dataset_name
 
+    def process_salamanca(
+        self,
+        txt_path: str | Path,
+        dataset_name: Optional[str] = None,
+        overwrite: bool = False,
+        stimulus_map: Optional[Dict[str, str]] = None,
+    ) -> str:
+        """! Procesa un TXT formato Salamanca y genera parquets.
+
+        @param txt_path Ruta al archivo .txt.
+        @param dataset_name Nombre lógico del dataset (por defecto, nombre del archivo).
+        @param overwrite Si True, reemplaza un dataset existente.
+        @param stimulus_map Mapa opcional código -> estímulo.
+        @return Nombre del dataset procesado.
+        @exception FileNotFoundError Si el TXT no existe.
+        @exception FileExistsError Si ya existe el dataset y overwrite es False.
+        """
+        txt_path = Path(txt_path)
+        if not txt_path.exists():
+            raise FileNotFoundError(f"No existe el TXT: {txt_path}")
+
+        if dataset_name is None:
+            dataset_name = txt_path.stem
+
+        out_dir = self.get_processed_path(dataset_name)
+
+        if out_dir.exists():
+            if not overwrite:
+                raise FileExistsError(
+                    f"Ya existe el dataset '{dataset_name}' en {out_dir}. "
+                    f"Usa overwrite=True si quieres regenerarlo."
+                )
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        from urlex.core.salamanca_processing import pdprocesssalamanca
+
+        respath = str(out_dir) + "/"
+        pdprocesssalamanca(str(txt_path), respath, stimulus_map=stimulus_map)
+
+        self._validate_processed_dir(out_dir)
+        return dataset_name
+
     def load_processed(self, name: str) -> ProcessedDataset:
         """! Carga informantes y todos los temas de un dataset procesado.
 
