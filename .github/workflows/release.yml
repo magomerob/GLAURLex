@@ -36,7 +36,7 @@ jobs:
         run: poetry run pip install pyinstaller
 
       - name: Build onefile EXE
-        run: poetry run pyinstaller --onefile --name URLex --collect-all streamlit --add-data "src/urlex/ui;urlex/ui" run_urlex.py
+        run: poetry run pyinstaller --onefile --name URLex --collect-all streamlit --add-data "src/urlex/ui;urlex/ui" scripts/run_urlex.py
 
       - name: Upload EXE artifact
         uses: actions/upload-artifact@v4

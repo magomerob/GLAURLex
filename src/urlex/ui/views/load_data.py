@@ -131,7 +131,9 @@ def render_load_data():
                     )
                 else:
                     if raw_map_text.strip() and salamanca_map is None:
-                        raise ValueError("El diccionario de correspondencias tiene errores de formato.")
+                        raise ValueError(
+                            "El diccionario de correspondencias tiene errores de formato."
+                        )
                     name = service.process_salamanca(
                         txt_path=input_path,
                         dataset_name=(dataset_name.strip() or None),
