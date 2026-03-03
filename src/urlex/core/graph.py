@@ -4,6 +4,9 @@ Utilidades de grafos para datasets procesados.
 
 from __future__ import annotations
 
+from time import perf_counter
+from typing import Callable, Optional
+
 import networkx as nx
 import pandas as pd
 
@@ -192,7 +195,26 @@ def node_stats(graph: nx.Graph | nx.DiGraph) -> pd.DataFrame:
     return out
 
 
-def small_world_indices(graph: nx.Graph | nx.DiGraph) -> dict:
+ProgressCb = Callable[[int, int], None]  # (i_actual, n_total)
+StatusCb = Callable[[str], None]
+
+
+def _format_eta(seconds: float) -> str:
+    total_seconds = max(0, int(round(seconds)))
+    minutes, secs = divmod(total_seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+    if hours > 0:
+        return f"{hours:d}:{minutes:02d}:{secs:02d}"
+    return f"{minutes:d}:{secs:02d}"
+
+
+def small_world_indices(
+    graph: nx.Graph | nx.DiGraph,
+    *,
+    n: int = 10,
+    progress_cb: Optional[ProgressCb] = None,
+    status_cb: Optional[StatusCb] = None,
+) -> dict:
     """! Calcula índices de small-world para grafos no dirigidos.
 
     @param graph Grafo de NetworkX (dirigido o no).
@@ -208,9 +230,20 @@ def small_world_indices(graph: nx.Graph | nx.DiGraph) -> dict:
     Cr = -1
     Ll = 0.0
     Lr = 0.0
-    n = 10
+    start_time = perf_counter()
+
     for i in range(n):
-        print(i, "/10")
+        if progress_cb:
+            progress_cb(i, n)
+        if status_cb:
+            if i == 0:
+                status_cb(f"Iteración {i + 1}/{n}. ETA estimado: calculando...")
+            else:
+                elapsed = perf_counter() - start_time
+                avg_per_iteration = elapsed / i
+                eta = avg_per_iteration * (n - i)
+                status_cb(f"Iteración {i + 1}/{n}. ETA estimado: {_format_eta(eta)}")
+
         lat = nx.algorithms.smallworld.lattice_reference(graph, niter=5, seed=42)
         rand = nx.algorithms.smallworld.random_reference(graph, niter=10, seed=42)
 
@@ -219,12 +252,13 @@ def small_world_indices(graph: nx.Graph | nx.DiGraph) -> dict:
         Ll += nx.average_shortest_path_length(lat) / n
         Lr += nx.average_shortest_path_length(rand) / n
 
-    result = {
-        "SWI": None,
-        "SWI_error": None,
-        "ω": None,
-        "ω_error": None,
-    }
+    # marca 100% al final
+    if progress_cb:
+        progress_cb(n, n)
+    if status_cb:
+        status_cb("Calculando ω y SWI...")
+
+    result = {"SWI": None, "SWI_error": None, "ω": None, "ω_error": None}
 
     if L == 0:
         result["ω_error"] = "No se puede calcular ω: la longitud media del grafo es 0."
@@ -233,9 +267,7 @@ def small_world_indices(graph: nx.Graph | nx.DiGraph) -> dict:
             "No se puede calcular ω: el clustering de referencia en red regular es 0."
         )
     else:
-        w = (Lr / L) - (C / Cl)
-        result["ω"] = w
-        print("ω", result["ω"])
+        result["ω"] = (Lr / L) - (C / Cl)
 
     if Ll == 0:
         result["SWI_error"] = "No se puede calcular SWI: la longitud media de la red regular es 0."
@@ -249,10 +281,9 @@ def small_world_indices(graph: nx.Graph | nx.DiGraph) -> dict:
         )
     else:
         result["SWI"] = ((L / Ll) / (Lr - Ll)) * ((C - Cr) / (Cl - Cr))
-        print("SWI", result["SWI"])
 
-    if result["SWI_error"] and result["ω_error"]:
-        print("fallo en el cálculo")
+    if status_cb:
+        status_cb("Listo ✅")
 
     return result
 

@@ -47,12 +47,6 @@ def compute_bigrams_cached(df_tema, cache_key: str):
     return bigrams_for_tema(df_tema)
 
 
-@st.cache_data(show_spinner=False)
-def compute_small_world_indices_cached(cache_key: str, _graph) -> dict:
-    _ = cache_key
-    return small_world_indices(_graph)
-
-
 def _render_small_world_metric(column, label: str, value, error: str | None) -> None:
     if isinstance(value, (int, float)):
         column.metric(label, f"{value:.4f}")
@@ -475,10 +469,23 @@ def render_graphs():
     sw_state_key = f"graphs::small_world::{sw_cache_key}"
 
     if calculate_sw:
-        with st.spinner("Calculando índices de small-world..."):
-            st.session_state[sw_state_key] = compute_small_world_indices_cached(
-                sw_cache_key, _graph=target_graph
-            )
+        progress_bar = st.progress(0.0)
+        status = st.empty()
+
+        def progress_cb(i: int, n: int) -> None:
+            progress_bar.progress(0.0 if n <= 0 else min(i / n, 1.0))
+
+        def status_cb(msg: str) -> None:
+            status.write(msg)
+
+        st.session_state[sw_state_key] = small_world_indices(
+            target_graph,
+            n=10,
+            progress_cb=progress_cb,
+            status_cb=status_cb,
+        )
+        progress_bar.progress(1.0)
+        status.write("Cálculo completado.")
 
     small_world = st.session_state.get(sw_state_key, {})
 
