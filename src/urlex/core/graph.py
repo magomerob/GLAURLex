@@ -196,7 +196,7 @@ def small_world_indices(graph: nx.Graph | nx.DiGraph) -> dict:
     """! Calcula índices de small-world para grafos no dirigidos.
 
     @param graph Grafo de NetworkX (dirigido o no).
-    @return Diccionario con SWI y ω' (vacío si el grafo es dirigido o no aplica).
+    @return Diccionario con SWI y ω junto a sus errores por métrica cuando no apliquen.
     """
     if graph.is_directed() or graph.number_of_nodes() <= 1:
         return {}
@@ -219,13 +219,42 @@ def small_world_indices(graph: nx.Graph | nx.DiGraph) -> dict:
         Ll += nx.average_shortest_path_length(lat) / n
         Lr += nx.average_shortest_path_length(rand) / n
 
-    if Cl <= 0 or (Lr - Ll) == 0 or (Cl - Cr) == 0:
-        return {}
+    result = {
+        "SWI": None,
+        "SWI_error": None,
+        "ω": None,
+        "ω_error": None,
+    }
 
-    w = (Lr / L) - (C / Cl)
-    swi = ((L / Ll) / (Lr - Ll)) * ((C - Cr) / (Cl - Cr))
+    if L == 0:
+        result["ω_error"] = "No se puede calcular ω: la longitud media del grafo es 0."
+    elif Cl <= 0:
+        result["ω_error"] = (
+            "No se puede calcular ω: el clustering de referencia en red regular es 0."
+        )
+    else:
+        w = (Lr / L) - (C / Cl)
+        result["ω"] = w
+        print("ω", result["ω"])
 
-    return {"ω'": 1 - abs(w), "SWI": swi}
+    if Ll == 0:
+        result["SWI_error"] = "No se puede calcular SWI: la longitud media de la red regular es 0."
+    elif (Lr - Ll) == 0:
+        result["SWI_error"] = (
+            "No se puede calcular SWI: la diferencia entre longitudes de referencia es 0."
+        )
+    elif (Cl - Cr) == 0:
+        result["SWI_error"] = (
+            "No se puede calcular SWI: la diferencia entre clustering de referencia es 0."
+        )
+    else:
+        result["SWI"] = ((L / Ll) / (Lr - Ll)) * ((C - Cr) / (Cl - Cr))
+        print("SWI", result["SWI"])
+
+    if result["SWI_error"] and result["ω_error"]:
+        print("fallo en el cálculo")
+
+    return result
 
 
 def is_graph_connected(graph: nx.Graph | nx.DiGraph) -> bool:
@@ -267,11 +296,11 @@ def graph_stats(
 
     Si es no dirigido (y `include_small_world=True`):
     - SWI: Small-worldness index.
-    - ω': omega de small world normalizada
+    - ω: omega de small world
 
     @param graph Grafo de NetworkX (dirigido o no).
     @param node_stats_df DataFrame de estadísticas por nodo (salida de `node_stats`).
-    @param include_small_world Si `True`, añade SWI y ω' para grafos no dirigidos.
+    @param include_small_world Si `True`, añade SWI y ω para grafos no dirigidos.
     @return Diccionario con métricas generales del grafo.
     """
     n_nodes = graph.number_of_nodes()

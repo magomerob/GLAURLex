@@ -53,6 +53,16 @@ def compute_small_world_indices_cached(cache_key: str, _graph) -> dict:
     return small_world_indices(_graph)
 
 
+def _render_small_world_metric(column, label: str, value, error: str | None) -> None:
+    if isinstance(value, (int, float)):
+        column.metric(label, f"{value:.4f}")
+        return
+
+    column.metric(label, "N/A")
+    if error:
+        column.error(error)
+
+
 def _infer_informant_col(df_tema) -> str | None:
     candidates = [
         "CODIGO_INFORMANTE",
@@ -108,7 +118,6 @@ def render_graphs():
         active_group_name = st.selectbox(
             "Selecciona un grupo",
             group_names,
-            index=group_names.index(st.session_state["graphs::group_select"]),
             key="graphs::group_select",
         )
         st.session_state.active_group = active_group_name
@@ -136,7 +145,6 @@ def render_graphs():
         tema = st.selectbox(
             "Selecciona un tema",
             tema_names,
-            index=tema_names.index(st.session_state["graphs::tema"]),
             key="graphs::tema",
         )
 
@@ -378,8 +386,8 @@ def render_graphs():
         "out_degree": "Grado saliente no ponderado.",
         "in_strength": "Grado entrante ponderado (`weight='weight'`).",
         "out_strength": "Grado saliente ponderado (`weight='weight'`).",
-        "SWI": "Small-worldness index.",
-        "ω'": "omega de small world normalizada",
+        "SWI": "Small-worldness index. Valores mayores suelen indicar una estructura más small-world.",
+        "ω": "Omega de small-world. Suele estar en el rango [-1, 1].",
     }
 
     hidden_columns = {"strong_component_id", "weak_component_id"}
@@ -408,9 +416,10 @@ def render_graphs():
         st.info("Solo disponible para grafos no dirigidos.")
         return
 
-    st.warning(
-        "El cálculo de índices small-world puede tardar bastante tiempo en grafos grandes.",
-        icon="⚠️",
+    st.caption(
+        "SWI está entre 0 y: valores mayores indican mayor nivel de small-world"
+        "\n ω está entre -1 y 1: cerca de 0 sugiere small-world, cerca de -1 una "
+        "red tipo lattice y cerca de 1 una red más aleatoria."
     )
 
     target_graph = None
@@ -422,9 +431,6 @@ def render_graphs():
     elif is_graph_connected(graph):
         target_graph = graph
     else:
-        st.info(
-            "El grafo no es conexo. Selecciona una componente conexa para habilitar el cálculo."
-        )
         components = connected_components_sorted(graph)
         component_labels = [
             f"Componente {idx} ({len(nodes):,} nodos)"
@@ -442,6 +448,10 @@ def render_graphs():
             target_label = selection
             component_suffix = f"cc{selected_idx}"
             st.caption(f"Cálculo sobre: {selection}.")
+        else:
+            st.info(
+                "El grafo no es conexo. Selecciona una componente conexa para habilitar el cálculo."
+            )
 
     button_disabled = target_graph is None
     calculate_sw = st.button(
@@ -471,13 +481,22 @@ def render_graphs():
             )
 
     small_world = st.session_state.get(sw_state_key, {})
+
     if not small_world:
-        st.caption("Pulsa el botón para calcular y mostrar SWI y ω'.")
+        st.warning(
+            "El cálculo de índices small-world puede tardar bastante tiempo en grafos grandes.",
+            icon="⚠️",
+        )
+
+    if not small_world:
+        st.caption("Pulsa el botón para calcular y mostrar SWI y ω.")
         return
 
     st.caption(f"Resultado mostrado para: {target_label}.")
     sw1, sw2 = st.columns(2)
     swi = small_world.get("SWI")
-    omega = small_world.get("ω'")
-    sw1.metric("SWI", f"{swi:.4f}" if isinstance(swi, (int, float)) else "N/A")
-    sw2.metric("ω'", f"{omega:.4f}" if isinstance(omega, (int, float)) else "N/A")
+    swi_error = small_world.get("SWI_error")
+    omega = small_world.get("ω")
+    omega_error = small_world.get("ω_error")
+    _render_small_world_metric(sw1, "SWI", swi, swi_error)
+    _render_small_world_metric(sw2, "ω", omega, omega_error)

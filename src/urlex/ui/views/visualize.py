@@ -93,7 +93,6 @@ def render_visualize():
     active_group_name = st.selectbox(
         "Selecciona un grupo",
         group_names,
-        index=group_names.index(st.session_state["visualize::group_select"]),
         key="visualize::group_select",
     )
     st.session_state.active_group = active_group_name
@@ -135,7 +134,6 @@ def render_visualize():
     tema = st.selectbox(
         "Selecciona un tema",
         tema_names,
-        index=tema_names.index(st.session_state["visualize::tema"]),
         key="visualize::tema",
     )
 

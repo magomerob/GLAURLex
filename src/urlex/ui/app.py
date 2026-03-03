@@ -71,7 +71,6 @@ def main():
     page = st.sidebar.radio(
         "Ir a:",
         options,
-        index=options.index(st.session_state["nav_page"]),
         key="nav_page",
     )
     current_token = next(
