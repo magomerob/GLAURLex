@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from urlex.core.salamanca_processing import pdprocesssalamanca
+from glaurlex.core.salamanca_processing import pdprocesssalamanca
 
 
 def test_pdprocesssalamanca_happy_path(tmp_path: Path) -> None:

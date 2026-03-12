@@ -1,4 +1,4 @@
-"""! @package urlex.core.groups_store
+"""! @package glaurlex.core.groups_store
 Persistencia de grupos de filtros para datasets procesados.
 """
 
@@ -9,7 +9,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Dict
 
-from urlex.core.groups import ALL_GROUP, Group
+from glaurlex.core.groups import ALL_GROUP, Group
 
 
 def groups_json_path(processed_dir: str, dataset_name: str) -> Path:

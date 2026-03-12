@@ -1,7 +1,7 @@
 import networkx as nx
 import pandas as pd
 
-from urlex.core.graph import (
+from glaurlex.core.graph import (
     bigrams_for_tema,
     bigrams_to_dirgraph,
     bigrams_to_undgraph,

@@ -1,6 +1,6 @@
 import pandas as pd
 
-from urlex.core.groups import Group, apply_group
+from glaurlex.core.groups import Group, apply_group
 
 
 def _sample_df() -> pd.DataFrame:

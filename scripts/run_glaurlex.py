@@ -3,15 +3,15 @@ import sys
 
 from streamlit.web import cli as stcli
 
-from urlex.ui import app as urlex_app
+from glaurlex.ui import app as glaurlex_app
 
 
 def main() -> int:
     # Detecta pyinstaller
     if hasattr(sys, "_MEIPASS"):
-        app_path = os.path.join(sys._MEIPASS, "urlex", "ui", "app.py")
+        app_path = os.path.join(sys._MEIPASS, "glaurlex", "ui", "app.py")
     else:
-        app_path = urlex_app.__file__
+        app_path = glaurlex_app.__file__
     os.environ["STREAMLIT_GLOBAL_DEVELOPMENT_MODE"] = "false"
     sys.argv = [
         "streamlit",

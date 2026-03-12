@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-"""! @package urlex.core.stats
+"""! @package glaurlex.core.stats
 Funciones estadísticas sobre datasets tokenizados.
 """
 

@@ -1,4 +1,4 @@
-"""! @package urlex.core.xlsx_processing
+"""! @package glaurlex.core.xlsx_processing
 Procesamiento de archivos XLSX a parquets por tema.
 """
 

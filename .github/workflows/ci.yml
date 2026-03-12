@@ -54,4 +54,4 @@ jobs:
           context: .
           file: Dockerfile
           push: false
-          tags: urlex:ci
+          tags: glaurlex:ci

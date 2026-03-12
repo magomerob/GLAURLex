@@ -1,4 +1,4 @@
-"""! @package urlex.core.models
+"""! @package glaurlex.core.models
 Modelos base del módulo core.
 """
 

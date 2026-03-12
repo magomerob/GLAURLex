@@ -1,4 +1,4 @@
-"""! @package urlex.core.graph_service
+"""! @package glaurlex.core.graph_service
 Servicios para almacenar y cargar grafos en formato GML.
 """
 

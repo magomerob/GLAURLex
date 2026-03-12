@@ -3,12 +3,12 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from urlex.config import DEFAULT_PROCESSED_DIR
-from urlex.core.dataset_service import DatasetService
-from urlex.core.graph import bigrams_for_tema, bigrams_to_unordered
-from urlex.core.groups import ALL_GROUP, apply_group
-from urlex.core.stats import estadisticas_df
-from urlex.ui.state import (
+from glaurlex.config import DEFAULT_PROCESSED_DIR
+from glaurlex.core.dataset_service import DatasetService
+from glaurlex.core.graph import bigrams_for_tema, bigrams_to_unordered
+from glaurlex.core.groups import ALL_GROUP, apply_group
+from glaurlex.core.stats import estadisticas_df
+from glaurlex.ui.state import (
     ensure_groups_loaded_for_dataset,
     ensure_state,
     sync_query_state,

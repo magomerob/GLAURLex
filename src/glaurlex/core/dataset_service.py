@@ -1,4 +1,4 @@
-"""! @package urlex.core.dataset_service
+"""! @package glaurlex.core.dataset_service
 Servicios para procesar y cargar datasets en formato parquet.
 """
 
@@ -10,7 +10,7 @@ from typing import Dict, List, Optional
 
 import pandas as pd
 
-from urlex.core.graph import bigrams_for_tema
+from glaurlex.core.graph import bigrams_for_tema
 
 
 @dataclass(frozen=True)
@@ -106,7 +106,7 @@ class DatasetService:
                 )
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        from urlex.core.xlsx_processing import pdprocessxlsx  # ajusta el path si cambia
+        from glaurlex.core.xlsx_processing import pdprocessxlsx  # ajusta el path si cambia
 
         respath = str(out_dir) + "/"
         pdprocessxlsx(str(xlsx_path), respath)
@@ -148,7 +148,7 @@ class DatasetService:
                 )
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        from urlex.core.salamanca_processing import pdprocesssalamanca
+        from glaurlex.core.salamanca_processing import pdprocesssalamanca
 
         respath = str(out_dir) + "/"
         pdprocesssalamanca(str(txt_path), respath, stimulus_map=stimulus_map)

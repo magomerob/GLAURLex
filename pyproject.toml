@@ -1,10 +1,10 @@
 [tool.poetry]
-name = "urlex"
+name = "glaurlex"
 version = "0.1.0"
 description = ""
 authors = ["magomerob <mark.mg02@gmail.com>"]
 readme = "README.md"
-packages = [{ include = "urlex", from = "src" }]
+packages = [{ include = "glaurlex", from = "src" }]
 
 [tool.poetry.dependencies]
 python = "^3.11"

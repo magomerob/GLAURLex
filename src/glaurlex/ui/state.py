@@ -5,9 +5,9 @@ from typing import Callable, Iterable, Optional, TypeVar
 
 import streamlit as st
 
-from urlex.config import DEFAULT_PROCESSED_DIR
-from urlex.core.groups import ALL_GROUP
-from urlex.core.groups_store import load_groups
+from glaurlex.config import DEFAULT_PROCESSED_DIR
+from glaurlex.core.groups import ALL_GROUP
+from glaurlex.core.groups_store import load_groups
 
 T = TypeVar("T")
 
