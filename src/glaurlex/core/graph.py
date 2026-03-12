@@ -1,4 +1,4 @@
-"""! @package urlex.core.graph
+"""! @package glaurlex.core.graph
 Utilidades de grafos para datasets procesados.
 """
 

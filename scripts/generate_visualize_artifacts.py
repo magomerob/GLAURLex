@@ -8,19 +8,19 @@ from pathlib import Path
 import networkx
 import pandas as pd
 
-from urlex.config import DEFAULT_PROCESSED_DIR
-from urlex.core.dataset_service import DatasetService
-from urlex.core.graph import (
+from glaurlex.config import DEFAULT_PROCESSED_DIR
+from glaurlex.core.dataset_service import DatasetService
+from glaurlex.core.graph import (
     bigrams_for_tema,
     bigrams_to_dirgraph,
     bigrams_to_undgraph,
     graph_stats,
     node_stats,
 )
-from urlex.core.graph_service import GraphService
-from urlex.core.groups import Group, apply_group
-from urlex.core.groups_store import load_groups
-from urlex.core.stats import estadisticas_df
+from glaurlex.core.graph_service import GraphService
+from glaurlex.core.groups import Group, apply_group
+from glaurlex.core.groups_store import load_groups
+from glaurlex.core.stats import estadisticas_df
 
 
 def _infer_informant_col(df_tema: pd.DataFrame) -> str | None:

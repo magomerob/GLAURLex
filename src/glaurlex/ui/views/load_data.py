@@ -6,9 +6,9 @@ from typing import Dict
 
 import streamlit as st
 
-from urlex.config import DEFAULT_PROCESSED_DIR
-from urlex.core.dataset_service import DatasetService
-from urlex.ui.state import ensure_state, set_query_param, sync_query_state
+from glaurlex.config import DEFAULT_PROCESSED_DIR
+from glaurlex.core.dataset_service import DatasetService
+from glaurlex.ui.state import ensure_state, set_query_param, sync_query_state
 
 
 @st.cache_resource

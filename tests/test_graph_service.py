@@ -1,6 +1,6 @@
 import networkx as nx
 
-from urlex.core.graph_service import GraphService
+from glaurlex.core.graph_service import GraphService
 
 
 def test_graph_service_save_load_gml(tmp_path):

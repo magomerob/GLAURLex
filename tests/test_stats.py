@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from urlex.core.stats import estadisticas_df
+from glaurlex.core.stats import estadisticas_df
 
 # LAS DISPONIBILIDADES SE TOMAN DE LEXPRO, SIN CORREGIR LA ERRATA
 

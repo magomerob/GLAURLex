@@ -1,4 +1,4 @@
-"""! @package urlex.core.salamanca_processing
+"""! @package glaurlex.core.salamanca_processing
 Placeholder para el procesamiento de archivos TXT (formato Salamanca) a parquets.
 """
 

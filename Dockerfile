@@ -42,4 +42,4 @@ RUN useradd -m appuser && chown -R appuser:appuser /app
 USER appuser
 
 EXPOSE 8501
-CMD ["streamlit", "run", "src/urlex/ui/app.py", "--server.address=0.0.0.0", "--server.port=8501"]
+CMD ["streamlit", "run", "src/glaurlex/ui/app.py", "--server.address=0.0.0.0", "--server.port=8501"]

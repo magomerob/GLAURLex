@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from urlex.core.xlsx_processing import pdprocessxlsx
+from glaurlex.core.xlsx_processing import pdprocessxlsx
 
 
 def _write_xlsx(path: Path, sheets: dict[str, pd.DataFrame]) -> None:

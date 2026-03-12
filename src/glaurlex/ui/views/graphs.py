@@ -4,9 +4,9 @@ import re
 
 import streamlit as st
 
-from urlex.config import DEFAULT_PROCESSED_DIR
-from urlex.core.dataset_service import DatasetService
-from urlex.core.graph import (
+from glaurlex.config import DEFAULT_PROCESSED_DIR
+from glaurlex.core.dataset_service import DatasetService
+from glaurlex.core.graph import (
     bigrams_for_tema,
     bigrams_to_dirgraph,
     bigrams_to_undgraph,
@@ -16,9 +16,9 @@ from urlex.core.graph import (
     node_stats,
     small_world_indices,
 )
-from urlex.core.graph_service import GraphService
-from urlex.core.groups import ALL_GROUP, apply_group
-from urlex.ui.state import (
+from glaurlex.core.graph_service import GraphService
+from glaurlex.core.groups import ALL_GROUP, apply_group
+from glaurlex.ui.state import (
     ensure_groups_loaded_for_dataset,
     ensure_state,
     sync_query_state,

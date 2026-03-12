@@ -3,11 +3,11 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from urlex.config import DEFAULT_PROCESSED_DIR
-from urlex.core.dataset_service import DatasetService
-from urlex.core.groups import ALL_GROUP, Group
-from urlex.core.groups_store import save_groups
-from urlex.ui.state import ensure_groups_loaded_for_dataset, ensure_state, has_dataset_loaded
+from glaurlex.config import DEFAULT_PROCESSED_DIR
+from glaurlex.core.dataset_service import DatasetService
+from glaurlex.core.groups import ALL_GROUP, Group
+from glaurlex.core.groups_store import save_groups
+from glaurlex.ui.state import ensure_groups_loaded_for_dataset, ensure_state, has_dataset_loaded
 
 
 @st.cache_resource

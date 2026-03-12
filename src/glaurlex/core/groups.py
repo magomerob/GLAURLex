@@ -1,4 +1,4 @@
-"""! @package urlex.core.groups
+"""! @package glaurlex.core.groups
 Definición y aplicación de grupos de filtros.
 """
 

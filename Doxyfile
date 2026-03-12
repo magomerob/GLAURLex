@@ -1,10 +1,10 @@
-PROJECT_NAME           = "URLex Core"
+PROJECT_NAME           = "GLAURLex Core"
 PROJECT_BRIEF          = "Documentación automática del módulo core"
 OUTPUT_DIRECTORY       = build/doxygen
 CREATE_SUBDIRS         = NO
 FULL_PATH_NAMES        = NO
 STRIP_FROM_PATH        = .
-INPUT                  = src/urlex/core
+INPUT                  = src/glaurlex/core
 FILE_PATTERNS          = *.py
 RECURSIVE              = YES
 EXTENSION_MAPPING      = py=Python

@@ -2,22 +2,22 @@ from __future__ import annotations
 
 import streamlit as st
 
-from urlex.ui.state import ensure_state, has_dataset_loaded, sync_query_state
+from glaurlex.ui.state import ensure_state, has_dataset_loaded, sync_query_state
 
 # Páginas
-from urlex.ui.views.graphs import render_graphs
-from urlex.ui.views.grouping import render_grouping
-from urlex.ui.views.load_data import render_load_data
-from urlex.ui.views.visualize import render_visualize
+from glaurlex.ui.views.graphs import render_graphs
+from glaurlex.ui.views.grouping import render_grouping
+from glaurlex.ui.views.load_data import render_load_data
+from glaurlex.ui.views.visualize import render_visualize
 
 
 def main():
-    st.set_page_config(page_title="URLex", layout="wide")
+    st.set_page_config(page_title="GLAURLex", layout="wide")
 
     ensure_state()
 
     st.set_page_config(
-        page_title="URLex",
+        page_title="GLAURLex",
         page_icon="🔎",
         layout="wide",
         initial_sidebar_state="expanded",
