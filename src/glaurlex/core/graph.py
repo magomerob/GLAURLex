@@ -46,10 +46,7 @@ def community_leiden(graph: nx.Graph | nx.DiGraph, seed: int = 42) -> list[set]:
         seed=seed,
     )
 
-    communities = [
-        {nodes[i] for i in community}
-        for community in partition
-    ]
+    communities = [{nodes[i] for i in community} for community in partition]
     return sorted(communities, key=lambda c: -len(c))
 
 

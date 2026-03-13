@@ -57,7 +57,21 @@ COLOR_COLS: dict[str, str] = {
 }
 
 SNS_STYLES = ["whitegrid", "darkgrid", "white", "dark", "ticks"]
-SNS_PALETTES = ["deep", "muted", "pastel", "bright", "dark", "colorblind", "tab10", "tab20", "Set1", "Set2", "Set3", "husl", "hls"]
+SNS_PALETTES = [
+    "deep",
+    "muted",
+    "pastel",
+    "bright",
+    "dark",
+    "colorblind",
+    "tab10",
+    "tab20",
+    "Set1",
+    "Set2",
+    "Set3",
+    "husl",
+    "hls",
+]
 
 # ---------------------------------------------------------------------------
 # Cache helpers
@@ -526,11 +540,15 @@ def render_charts():
         with ec1:
             sns_style = st.selectbox("Estilo", SNS_STYLES, index=0, key="charts::style")
             primary_color = st.color_picker(
-                "Color principal", value="#4C72B0", key="charts::primary_color",
-                help="Color para gráficos de una sola serie (barras con una métrica, etc.)"
+                "Color principal",
+                value="#4C72B0",
+                key="charts::primary_color",
+                help="Color para gráficos de una sola serie (barras con una métrica, etc.)",
             )
         with ec2:
-            sns_palette = st.selectbox("Paleta de colores", SNS_PALETTES, index=0, key="charts::palette")
+            sns_palette = st.selectbox(
+                "Paleta de colores", SNS_PALETTES, index=0, key="charts::palette"
+            )
             palette_colors = sns.color_palette(sns_palette, n_colors=10).as_hex()
             swatches = "".join(
                 f'<span style="display:inline-block;width:20px;height:20px;'
