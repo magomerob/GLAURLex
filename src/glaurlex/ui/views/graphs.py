@@ -10,6 +10,7 @@ from glaurlex.core.graph import (
     bigrams_for_tema,
     bigrams_to_dirgraph,
     bigrams_to_undgraph,
+    community_leiden,
     connected_components_sorted,
     graph_stats,
     is_graph_connected,
@@ -45,6 +46,16 @@ def load_dataset(processed_dir: str, name: str):
 def compute_bigrams_cached(df_tema, cache_key: str):
     _ = cache_key
     return bigrams_for_tema(df_tema)
+
+
+def compute_communities(graph, cache_key: str) -> dict:
+    state_key = f"comm_cache::{cache_key}"
+    if state_key not in st.session_state:
+        communities = community_leiden(graph, seed=42)
+        st.session_state[state_key] = {
+            node: i + 1 for i, community in enumerate(communities) for node in community
+        }
+    return st.session_state[state_key]
 
 
 def _render_small_world_metric(column, label: str, value, error: str | None) -> None:
@@ -243,17 +254,25 @@ def render_graphs():
     with st.spinner("Calculando estadísticas..."):
         stats_df = node_stats(graph)
         gstats = graph_stats(graph, stats_df, include_small_world=False)
+        comm_cache_key = (
+            f"{s.dataset_name}::{graph_name}::{graph.number_of_nodes()}::{graph.number_of_edges()}"
+        )
+        community_map = compute_communities(graph, cache_key=comm_cache_key)
+        stats_df = stats_df.copy()
+        stats_df["community_id"] = stats_df["node"].map(community_map).astype("Int64")
 
     if len(stats_df) == 0:
         st.info("No hay nodos para mostrar.")
         return
 
     st.subheader("Estadísticas generales")
+    n_communities = stats_df["community_id"].nunique(dropna=True)
     gstats_view = {
         "Diámetro": [gstats["diameter"]],
         "Long. camino prom.": [gstats["avg_path_length"]],
         "Densidad": [gstats["density"]],
         "Componentes": [gstats["components"]],
+        "Comunidades (Leiden)": [n_communities],
         "Grado prom.": [gstats["avg_degree"]],
         "Fuerza prom.": [gstats["avg_strength"]],
         "Clustering prom.": [gstats["avg_clustering"]],
@@ -263,6 +282,7 @@ def render_graphs():
         "Long. camino prom.": "Longitud media de caminos más cortos en la mayor componente.",
         "Densidad": "Densidad del grafo.",
         "Componentes": "Número de componentes conexas (o débilmente conexas si es dirigido).",
+        "Comunidades (Leiden)": "Número de comunidades detectadas con el algoritmo de Leiden (ModularityVertexPartition, ponderado).",
         "Grado prom.": "Promedio de grado (sin pesos).",
         "Fuerza prom.": "Promedio de grado ponderado por `weight`.",
         "Clustering prom.": "Coeficiente de clustering promedio ponderado.",
@@ -277,6 +297,9 @@ def render_graphs():
         ),
         "Componentes": st.column_config.NumberColumn(
             "Componentes", help=gstats_help["Componentes"]
+        ),
+        "Comunidades (Leiden)": st.column_config.NumberColumn(
+            "Comunidades (Leiden)", help=gstats_help["Comunidades (Leiden)"]
         ),
         "Grado prom.": st.column_config.NumberColumn(
             "Grado prom.", help=gstats_help["Grado prom."], format="%.4f"
@@ -308,7 +331,7 @@ def render_graphs():
             key="graphs::top_n",
         )
 
-    f1, f2, f3 = st.columns([1, 1, 2])
+    f1, f2, f3, f4 = st.columns([1, 1, 1, 2])
     strong_component_sizes = (
         stats_df.groupby("strong_component_id", dropna=True)["node"].size().to_dict()
     )
@@ -320,6 +343,11 @@ def render_graphs():
     weak_component_options = ["Todos"] + sorted(
         stats_df["weak_component_id"].dropna().astype(int).unique().tolist()
     )
+    community_sizes = stats_df.groupby("community_id", dropna=True)["node"].size().to_dict()
+    community_ids = stats_df["community_id"].dropna().astype(int).unique().tolist()
+    community_ids.sort(key=lambda cid: (-community_sizes.get(cid, 0), cid))
+    community_options = ["Todos"] + community_ids
+
     sync_query_state(
         key="graphs::strong_component_filter",
         param="g_strong",
@@ -333,6 +361,13 @@ def render_graphs():
         default="Todos",
         parse=lambda raw: int(raw) if raw.strip().isdigit() else "Todos",
         allowed_values=weak_component_options,
+    )
+    sync_query_state(
+        key="graphs::community_filter",
+        param="g_comm",
+        default="Todos",
+        parse=lambda raw: int(raw) if raw.strip().isdigit() else "Todos",
+        allowed_values=community_options,
     )
     sync_query_state(
         key="graphs::query",
@@ -353,6 +388,12 @@ def render_graphs():
             key="graphs::weak_component_filter",
         )
     with f3:
+        selected_community = st.selectbox(
+            "Comunidad (Leiden)",
+            community_options,
+            key="graphs::community_filter",
+        )
+    with f4:
         query = st.text_input("Filtrar nodo (contiene)", key="graphs::query")
 
     view = stats_df
@@ -360,6 +401,8 @@ def render_graphs():
         view = view[view["strong_component_id"] == int(selected_strong_component)]
     if selected_weak_component != "Todos":
         view = view[view["weak_component_id"] == int(selected_weak_component)]
+    if selected_community != "Todos":
+        view = view[view["community_id"] == int(selected_community)]
     if query:
         view = view[view["node"].astype(str).str.contains(query, case=False, na=False)]
     view = view.head(int(top_n))
@@ -376,6 +419,7 @@ def render_graphs():
         "clustering": "Coeficiente de clustering ponderado (`weight='weight'`).",
         "strong_component_id": "ID de componente fuertemente conexa.",
         "weak_component_id": "ID de componente débilmente conexa.",
+        "community_id": "ID de comunidad detectada con Leiden (ModularityVertexPartition, ponderado).",
         "in_degree": "Grado entrante no ponderado.",
         "out_degree": "Grado saliente no ponderado.",
         "in_strength": "Grado entrante ponderado (`weight='weight'`).",

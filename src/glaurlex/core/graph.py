@@ -7,8 +7,47 @@ from __future__ import annotations
 from time import perf_counter
 from typing import Callable, Optional
 
+import igraph as ig
+import leidenalg
 import networkx as nx
 import pandas as pd
+
+
+def community_leiden(graph: nx.Graph | nx.DiGraph, seed: int = 42) -> list[set]:
+    """! Detecta comunidades con el algoritmo de Leiden.
+
+    Convierte el grafo de NetworkX a igraph, ejecuta Leiden con pesos
+    y devuelve la partición como lista de sets de nodos (misma interfaz
+    que `nx.community.louvain_communities`).
+
+    Para grafos dirigidos se usa la versión no dirigida subyacente.
+
+    @param graph Grafo de NetworkX (dirigido o no).
+    @param seed  Semilla aleatoria para reproducibilidad.
+    @return Lista de sets de nodos, uno por comunidad, ordenados por tamaño desc.
+    """
+    G_und = graph.to_undirected() if graph.is_directed() else graph
+    if G_und.number_of_nodes() == 0:
+        return []
+
+    nodes = list(G_und.nodes())
+    node_index = {n: i for i, n in enumerate(nodes)}
+
+    edges = [(node_index[u], node_index[v]) for u, v in G_und.edges()]
+    weights = [G_und[u][v].get("weight", 1.0) for u, v in G_und.edges()]
+
+    ig_graph = ig.Graph(n=len(nodes), edges=edges, directed=False)
+    ig_graph.es["weight"] = weights
+
+    partition = leidenalg.find_partition(
+        ig_graph,
+        leidenalg.ModularityVertexPartition,
+        weights="weight",
+        seed=seed,
+    )
+
+    communities = [{nodes[i] for i in community} for community in partition]
+    return sorted(communities, key=lambda c: -len(c))
 
 
 def bigrams_for_tema(df: pd.DataFrame) -> pd.DataFrame:

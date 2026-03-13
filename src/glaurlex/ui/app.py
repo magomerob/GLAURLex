@@ -5,6 +5,7 @@ import streamlit as st
 from glaurlex.ui.state import ensure_state, has_dataset_loaded, sync_query_state
 
 # Páginas
+from glaurlex.ui.views.charts import render_charts
 from glaurlex.ui.views.graphs import render_graphs
 from glaurlex.ui.views.grouping import render_grouping
 from glaurlex.ui.views.load_data import render_load_data
@@ -39,13 +40,14 @@ def main():
 
     # Si no hay dataset, bloqueamos visualización y grafos en la UI
     if has_dataset_loaded():
-        options = ["Carga de datos", "Grupos", "Estadísticas", "Grafos"]
+        options = ["Carga de datos", "Grupos", "Estadísticas", "Grafos", "Gráficos"]
     else:
         options = [
             "Carga de datos",
             "Grupos (bloqueado)",
             "Estadísticas (bloqueado)",
             "Grafos (bloqueado)",
+            "Gráficos (bloqueado)",
         ]
 
     page_token_to_prefix = {
@@ -53,6 +55,7 @@ def main():
         "groups": "Grupos",
         "stats": "Estadísticas",
         "graphs": "Grafos",
+        "charts": "Gráficos",
     }
     page_prefix_to_token = {v: k for k, v in page_token_to_prefix.items()}
 
@@ -100,6 +103,8 @@ def main():
         render_visualize()
     elif page.startswith("Grafos"):
         render_graphs()
+    elif page.startswith("Gráficos"):
+        render_charts()
 
 
 if __name__ == "__main__":
