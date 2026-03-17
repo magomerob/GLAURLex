@@ -105,7 +105,7 @@ def pdprocesssalamanca(path, respath, stimulus_map: Optional[Dict[str, str]] = N
                 {
                     "user_id": individual_id,
                     "pos": pos,
-                    "token": token,
+                    "type": token,
                 }
             )
 
@@ -113,7 +113,7 @@ def pdprocesssalamanca(path, respath, stimulus_map: Optional[Dict[str, str]] = N
         raise ValueError("No se encontraron líneas válidas en el archivo Salamanca.")
 
     if not temas_rows:
-        raise ValueError("No se detectaron tokens para crear temas en el archivo Salamanca.")
+        raise ValueError("No se detectaron types para crear temas en el archivo Salamanca.")
 
     informantes_df = pd.DataFrame(informantes_rows)
     informantes_df = informantes_df.drop_duplicates(
@@ -125,7 +125,7 @@ def pdprocesssalamanca(path, respath, stimulus_map: Optional[Dict[str, str]] = N
     informantes_df.to_parquet(respath / "informantes.parquet", index=False)
 
     for tema_name, rows in temas_rows.items():
-        df_tema = pd.DataFrame(rows, columns=["user_id", "pos", "token"])
+        df_tema = pd.DataFrame(rows, columns=["user_id", "pos", "type"])
         df_tema = df_tema.sort_values(["user_id", "pos"]).reset_index(drop=True)
         out_name = _sanitize_filename(tema_name) + ".parquet"
         df_tema.to_parquet(respath / out_name, index=False)

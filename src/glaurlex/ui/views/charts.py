@@ -27,7 +27,7 @@ from glaurlex.ui.state import (
 # Columnas disponibles para graficar
 # ---------------------------------------------------------------------------
 
-TOKEN_STATS_COLS: dict[str, str] = {
+TYPE_STATS_COLS: dict[str, str] = {
     "disponibilidad": "Disponibilidad",
     "aparición": "Aparición",
     "freq_rel": "Frecuencia relativa",
@@ -46,7 +46,7 @@ NODE_STATS_COLS: dict[str, str] = {
     "degree_centrality": "Centralidad de grado",
 }
 
-ALL_METRIC_COLS: dict[str, str] = {**TOKEN_STATS_COLS, **NODE_STATS_COLS}
+ALL_METRIC_COLS: dict[str, str] = {**TYPE_STATS_COLS, **NODE_STATS_COLS}
 
 # Opciones para colorear puntos del scatter (variables categóricas)
 COLOR_COLS: dict[str, str] = {
@@ -89,7 +89,7 @@ def _load_dataset(processed_dir: str, name: str):
 
 
 @st.cache_data(show_spinner=False)
-def _token_stats_cached(df_tema, cache_key: str) -> pd.DataFrame:
+def _type_stats_cached(df_tema, cache_key: str) -> pd.DataFrame:
     _ = cache_key
     return estadisticas_df(df_tema)
 
@@ -110,7 +110,7 @@ def _community_cached(df_tema, directed: bool, cache_key: str) -> pd.DataFrame:
     G = bigrams_to_dirgraph(bigrams) if directed else bigrams_to_undgraph(bigrams)
     communities = community_leiden(G, seed=42)
     rows = [
-        {"token": node, "community_id": i + 1}
+        {"type": node, "community_id": i + 1}
         for i, community in enumerate(communities)
         for node in community
     ]
@@ -198,9 +198,9 @@ def _load_merged(
 
     parts: list[pd.DataFrame] = []
 
-    if source in ("Tokens", "Combinada"):
-        tok = _token_stats_cached(df_f, cache_key=cache_key + "::tok")
-        parts.append(tok.rename(columns={"token": "_id"}).set_index("_id"))
+    if source in ("Types", "Combinada"):
+        tok = _type_stats_cached(df_f, cache_key=cache_key + "::tok")
+        parts.append(tok.rename(columns={"type": "_id"}).set_index("_id"))
 
     if source in ("Nodos", "Combinada"):
         nod = _node_stats_cached(df_f, directed=directed, cache_key=cache_key + f"::nod{directed}")
@@ -208,9 +208,9 @@ def _load_merged(
         parts.append(nod.rename(columns={node_col: "_id"}).set_index("_id"))
 
     if len(parts) == 1:
-        df = parts[0].reset_index().rename(columns={"_id": "token"})
+        df = parts[0].reset_index().rename(columns={"_id": "type"})
     else:
-        df = parts[0].join(parts[1], how="inner").reset_index().rename(columns={"_id": "token"})
+        df = parts[0].join(parts[1], how="inner").reset_index().rename(columns={"_id": "type"})
 
     return df
 
@@ -270,12 +270,12 @@ def _attach_color_col(
         nod = _node_stats_cached(df_f, directed, cache_key=cache_key + f"::nod{directed}")
         node_col = "node" if "node" in nod.columns else nod.columns[0]
         cols_to_keep = [node_col, color_key] if color_key in nod.columns else [node_col]
-        extra = nod[cols_to_keep].rename(columns={node_col: "token"})
+        extra = nod[cols_to_keep].rename(columns={node_col: "type"})
 
     if color_key not in extra.columns:
         return df_plot, None
 
-    df_plot = df_plot.merge(extra[["token", color_key]], on="token", how="left")
+    df_plot = df_plot.merge(extra[["type", color_key]], on="type", how="left")
     # Formato legible: entero → "C1", "C2", …
     df_plot[color_key] = (
         df_plot[color_key]
@@ -330,7 +330,7 @@ def render_charts():
     with col_source:
         source = st.radio(
             "Fuente de métricas",
-            ["Tokens", "Nodos", "Combinada"],
+            ["Types", "Nodos", "Combinada"],
             horizontal=True,
             key="charts::source",
         )
@@ -342,8 +342,8 @@ def render_charts():
         )
 
     available_cols = (
-        TOKEN_STATS_COLS
-        if source == "Tokens"
+        TYPE_STATS_COLS
+        if source == "Types"
         else NODE_STATS_COLS
         if source == "Nodos"
         else ALL_METRIC_COLS
@@ -372,13 +372,13 @@ def render_charts():
             top_n = (
                 None
                 if bar_all
-                else st.number_input("Top N tokens", 5, 200, 20, key="charts::bar_top_n")
+                else st.number_input("Top N types", 5, 200, 20, key="charts::bar_top_n")
             )
 
         multi_group = len(bar_groups) > 1
         if multi_group:
             st.caption(
-                "Comparación multi-grupo: los tokens del eje X se ordenan según el **primer grupo** seleccionado."
+                "Comparación multi-grupo: los types del eje X se ordenan según el **primer grupo** seleccionado."
             )
             y_cols = st.multiselect(
                 "Métrica (eje Y)",
@@ -413,7 +413,7 @@ def render_charts():
             top_n = (
                 None
                 if scat_all
-                else st.number_input("Top N tokens", 5, 500, 100, key="charts::scat_top_n")
+                else st.number_input("Top N types", 5, 500, 100, key="charts::scat_top_n")
             )
 
         cx, cy = st.columns(2)
@@ -436,7 +436,7 @@ def render_charts():
         c_labels, c_trend, c_color = st.columns(3)
         with c_labels:
             show_labels = st.toggle(
-                "Mostrar etiquetas de tokens", value=False, key="charts::scat_labels"
+                "Mostrar etiquetas de types", value=False, key="charts::scat_labels"
             )
         with c_trend:
             show_trend = st.toggle(
@@ -591,32 +591,32 @@ def render_charts():
                 metric = y_cols[0]
 
                 if multi_group:
-                    # Referencia de tokens: top-N del primer grupo
+                    # Referencia de types: top-N del primer grupo
                     df_ref = _load_merged(ds, tema, bar_groups[0], source, directed, s.dataset_name)
                     if metric not in df_ref.columns:
                         st.error(f"La columna '{metric}' no está disponible.")
                         plt.close(fig)
                         return
-                    ref_tokens = (
-                        df_ref.sort_values(metric, ascending=False)["token"].tolist()
+                    ref_types = (
+                        df_ref.sort_values(metric, ascending=False)["type"].tolist()
                         if top_n is None
-                        else df_ref.nlargest(int(top_n), metric)["token"].tolist()
+                        else df_ref.nlargest(int(top_n), metric)["type"].tolist()
                     )
 
                     frames = []
                     for g in bar_groups:
                         df_g = _load_merged(ds, tema, g, source, directed, s.dataset_name)
-                        df_g = df_g[df_g["token"].isin(ref_tokens)][["token", metric]].copy()
+                        df_g = df_g[df_g["type"].isin(ref_types)][["type", metric]].copy()
                         df_g["Grupo"] = g
                         frames.append(df_g)
                     df_plot = pd.concat(frames, ignore_index=True)
                     # Mantener orden del ranking de referencia
-                    df_plot["token"] = pd.Categorical(
-                        df_plot["token"], categories=ref_tokens, ordered=True
+                    df_plot["type"] = pd.Categorical(
+                        df_plot["type"], categories=ref_types, ordered=True
                     )
-                    df_plot = df_plot.sort_values("token")
+                    df_plot = df_plot.sort_values("type")
 
-                    sns.barplot(data=df_plot, x="token", y=metric, hue="Grupo", ax=ax)
+                    sns.barplot(data=df_plot, x="type", y=metric, hue="Grupo", ax=ax)
                     ax.set_ylabel(available_cols.get(metric, metric))
                     top_label = "Todos" if top_n is None else f"Top {top_n}"
                     ax.set_title(
@@ -636,24 +636,24 @@ def render_charts():
                     df_plot = df if top_n is None else df.nlargest(int(top_n), metric)
 
                     if len(y_cols) == 1:
-                        sns.barplot(data=df_plot, x="token", y=metric, ax=ax, color=primary_color)
+                        sns.barplot(data=df_plot, x="type", y=metric, ax=ax, color=primary_color)
                         ax.set_ylabel(available_cols[metric])
                     else:
                         valid_y = [c for c in y_cols if c in df_plot.columns]
-                        df_melt = df_plot[["token"] + valid_y].melt(
-                            id_vars=["token"], var_name="métrica", value_name="valor"
+                        df_melt = df_plot[["type"] + valid_y].melt(
+                            id_vars=["type"], var_name="métrica", value_name="valor"
                         )
                         df_melt["métrica"] = df_melt["métrica"].map(
                             lambda k: available_cols.get(k, k)
                         )
-                        sns.barplot(data=df_melt, x="token", y="valor", hue="métrica", ax=ax)
+                        sns.barplot(data=df_melt, x="type", y="valor", hue="métrica", ax=ax)
                         ax.set_ylabel("Valor")
 
                     top_label = "Todos" if top_n is None else f"Top {top_n}"
                     ax.set_title(f"{top_label} — {tema} / {bar_groups[0]}")
                     prefix += f"_{tema}_{bar_groups[0]}"
 
-                ax.set_xlabel("Token")
+                ax.set_xlabel("Type")
                 ax.tick_params(axis="x", rotation=45)
 
             # --- Scatter ---
@@ -725,7 +725,7 @@ def render_charts():
                     if show_labels:
                         for _, row in df_plot.iterrows():
                             ax.annotate(
-                                str(row["token"]),
+                                str(row["type"]),
                                 (row[x_col], row[y_col]),
                                 fontsize=7,
                                 alpha=0.75,
@@ -784,7 +784,7 @@ def render_charts():
                     if show_labels:
                         for _, row in df_plot.iterrows():
                             ax.annotate(
-                                str(row["token"]),
+                                str(row["type"]),
                                 (row[x_col], row[y_col]),
                                 fontsize=7,
                                 alpha=0.6,

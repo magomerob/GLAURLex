@@ -205,7 +205,7 @@ def render_visualize():
     with c2:
         min_ap = st.slider("Aparición mínima", 0.0, 1.0, key="visualize::min_ap", step=0.01)
     with c3:
-        query = st.text_input("Filtrar token (contiene)", key="visualize::query")
+        query = st.text_input("Filtrar type (contiene)", key="visualize::query")
 
     # Calcular estadísticas
     # cache_key para que el caché distinga dataset + tema + grupo + tamaño filtrado
@@ -217,18 +217,19 @@ def render_visualize():
     stats_view = stats
     if query:
         stats_view = stats_view[
-            stats_view["token"].astype(str).str.contains(query, case=False, na=False)
+            stats_view["type"].astype(str).str.contains(query, case=False, na=False)
         ]
     stats_view = stats_view[stats_view["aparición"] >= min_ap]
 
     stats_top = stats_view.head(int(top_n))
 
     # KPIs
-    k1, k2, k3, k4 = st.columns(4)
-    k1.metric("Tokens únicos", f"{len(stats):,}")
-    k2.metric("Mostrados (tras filtros)", f"{len(stats_view):,}")
-    k3.metric("Freq. Top N", f"{stats_top['freq_rel'].sum():.3f}" if len(stats_top) else "0.000")
-    k4.metric("Disponibilidad máx", f"{stats['disponibilidad'].max():.4f}" if len(stats) else "—")
+    k1, k2, k3, k4, k5 = st.columns(5)
+    k1.metric("Types únicos", f"{len(stats):,}")
+    k2.metric("Total tokens", f"{int(stats['tokens'].sum()):,}" if len(stats) else "0")
+    k3.metric("Mostrados (tras filtros)", f"{len(stats_view):,}")
+    k4.metric("Freq. Top N", f"{stats_top['freq_rel'].sum():.3f}" if len(stats_top) else "0.000")
+    k5.metric("Disponibilidad máx", f"{stats['disponibilidad'].max():.4f}" if len(stats) else "—")
 
     st.divider()
 
@@ -269,13 +270,13 @@ def render_visualize():
         bigrams_view = bigrams_ordered.copy()
 
     if len(bigrams_view) == 0:
-        bigrams_view = pd.DataFrame(columns=["token_1", "token_2", "aparición", "freq_rel"])
+        bigrams_view = pd.DataFrame(columns=["type_1", "type_2", "aparición", "freq_rel"])
     else:
         bigrams_view = bigrams_view.rename(columns={"count": "aparición"})
         ninf = df_tema_f[informant_col].nunique() if informant_col in df_tema_f.columns else 1
         bigrams_view["freq_rel"] = bigrams_view["aparición"] / ninf if ninf > 0 else 0.0
         bigrams_view = bigrams_view.sort_values(
-            ["aparición", "token_1", "token_2"], ascending=[False, True, True]
+            ["aparición", "type_1", "type_2"], ascending=[False, True, True]
         )
 
     bigrams_top = bigrams_view.head(int(top_n))
@@ -284,8 +285,8 @@ def render_visualize():
         width="stretch",
         hide_index=True,
         column_config={
-            "token_1": st.column_config.TextColumn("token_1"),
-            "token_2": st.column_config.TextColumn("token_2"),
+            "type_1": st.column_config.TextColumn("type_1"),
+            "type_2": st.column_config.TextColumn("type_2"),
             "aparición": st.column_config.NumberColumn("aparición", format="%.0f"),
             "freq_rel": st.column_config.NumberColumn("freq_rel", format="%.6f"),
         },
@@ -298,9 +299,9 @@ def render_visualize():
     if len(stats_top) > 0:
         # 1) Disponibilidad (Top N)
         fig1 = plt.figure()
-        plt.plot(stats_top["token"], stats_top["disponibilidad"])
+        plt.plot(stats_top["type"], stats_top["disponibilidad"])
         plt.xticks(rotation=90)
-        plt.xlabel("token")
+        plt.xlabel("type")
         plt.ylabel("disponibilidad")
         plt.tight_layout()
         st.pyplot(fig1, clear_figure=True)

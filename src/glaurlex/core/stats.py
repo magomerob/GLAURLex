@@ -2,24 +2,32 @@ import numpy as np
 import pandas as pd
 
 """! @package glaurlex.core.stats
-Funciones estadísticas sobre datasets tokenizados.
+Funciones estadísticas sobre datasets de tipos léxicos.
 """
 
 
 def estadisticas_df(df: pd.DataFrame, informantes_df: pd.DataFrame = None) -> pd.DataFrame:
-    """! Calcula estadísticas básicas para tokens.
+    """! Calcula estadísticas básicas para types.
 
-    Espera columnas: token (str), pos (int), user_id (int/str).
-    Devuelve columnas: token, freq_rel, disponibilidad, avg_pos, aparición, freq_acum.
+    Espera columnas: type (str), pos (int), user_id (int/str).
+    Devuelve columnas: type, tokens, freq_rel, disponibilidad, avg_pos, aparición, freq_acum.
 
-    @param df DataFrame tokenizado.
+    @param df DataFrame con ocurrencias de types.
     @param informantes_df DataFrame con informantes (para filtrar user_id).
-    @return DataFrame con estadísticas por token.
+    @return DataFrame con estadísticas por type.
     """
 
     if df.empty:
         return pd.DataFrame(
-            columns=["token", "disponibilidad", "avg_pos", "aparición", "freq_rel", "freq_acum"]
+            columns=[
+                "type",
+                "tokens",
+                "disponibilidad",
+                "avg_pos",
+                "aparición",
+                "freq_rel",
+                "freq_acum",
+            ]
         )
 
     if informantes_df is not None:
@@ -32,61 +40,75 @@ def estadisticas_df(df: pd.DataFrame, informantes_df: pd.DataFrame = None) -> pd
     n = int(df["pos"].max()) if pd.notna(df["pos"].max()) else 0
     if n == 0:
         # Caso límite: todo pos=0
+        counts = (
+            df["type"]
+            .value_counts()
+            .rename("tokens")
+            .reset_index()
+            .rename(columns={"index": "type"})
+        )
         out = (
-            df["token"]
+            df["type"]
             .value_counts(normalize=True)
             .rename("freq_rel")
             .reset_index()
-            .rename(columns={"index": "token"})
+            .rename(columns={"index": "type"})
         )
+        out = out.merge(counts, on="type", how="left")
         out["disponibilidad"] = 1.0
         out["avg_pos"] = 0.0
         out["aparición"] = (
-            df.groupby("token")["user_id"].nunique().reindex(out["token"]).to_numpy() / ninf
+            df.groupby("type")["user_id"].nunique().reindex(out["type"]).to_numpy() / ninf
         )
         out = out.sort_values("disponibilidad", ascending=False)
         out["freq_acum"] = out["freq_rel"].cumsum()
-        out = out.rename(columns={"aparición": "aparición"})
         return out
 
-    # Frecuencia relativa por token
+    # Conteo de tokens por type (número de ocurrencias)
+    counts = (
+        df["type"].value_counts().rename("tokens").reset_index().rename(columns={"index": "type"})
+    )
+
+    # Frecuencia relativa por type
     freq = (
-        df["token"]
+        df["type"]
         .value_counts(normalize=True)
         .rename("freq_rel")
         .reset_index()
-        .rename(columns={"index": "token"})
+        .rename(columns={"index": "type"})
     )
 
-    # avg_pos por token
-    avg_pos = df.groupby("token", as_index=False)["pos"].mean().rename(columns={"pos": "avg_pos"})
+    # avg_pos por type
+    avg_pos = df.groupby("type", as_index=False)["pos"].mean().rename(columns={"pos": "avg_pos"})
 
     # aparición = nº informantes que lo dijeron / ninf
-    apar = df.groupby("token")["user_id"].nunique().rename("aparición").reset_index()
+    apar = df.groupby("type")["user_id"].nunique().rename("aparición").reset_index()
     apar["aparición"] = apar["aparición"] / ninf
 
     # disponibilidad (vectorizada):
-    # 1) contar informantes únicos por (token, pos)
-    tp = df.groupby(["token", "pos"])["user_id"].nunique().rename("u").reset_index()
+    # 1) contar informantes únicos por (type, pos)
+    tp = df.groupby(["type", "pos"])["user_id"].nunique().rename("u").reset_index()
 
     # 2) pesos por pos
     # exp(-2.3 * (i/(n)))
     weights = np.exp(-2.3 * (tp["pos"].to_numpy() / (n)))
 
-    # 3) sumar e * (u/ninf) por token
+    # 3) sumar e * (u/ninf) por type
     tp["w"] = weights
     tp["term"] = tp["w"] * (tp["u"] / ninf)
     disp = (
-        tp.groupby("token", as_index=False)["term"].sum().rename(columns={"term": "disponibilidad"})
+        tp.groupby("type", as_index=False)["term"].sum().rename(columns={"term": "disponibilidad"})
     )
 
     # juntar todo
     out = (
-        freq.merge(disp, on="token", how="left")
-        .merge(avg_pos, on="token", how="left")
-        .merge(apar, on="token", how="left")
+        freq.merge(counts, on="type", how="left")
+        .merge(disp, on="type", how="left")
+        .merge(avg_pos, on="type", how="left")
+        .merge(apar, on="type", how="left")
     )
 
+    out["tokens"] = out["tokens"].fillna(0).astype(int)
     out["disponibilidad"] = out["disponibilidad"].fillna(0.0)
     out["avg_pos"] = out["avg_pos"].fillna(np.nan)
     out["aparición"] = out["aparición"].fillna(0.0)
@@ -101,7 +123,7 @@ def estadisticas(path: str) -> pd.DataFrame:
     """! Carga un parquet y devuelve sus estadísticas.
 
     @param path Ruta al parquet.
-    @return DataFrame con estadísticas por token.
+    @return DataFrame con estadísticas por type.
     """
     df = pd.read_parquet(path)
     return estadisticas_df(df)

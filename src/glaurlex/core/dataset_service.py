@@ -21,13 +21,13 @@ class ProcessedDataset:
         - `name`: Nombre del dataset.
         - `root`: Ruta al directorio raiz del dataset.
         - `informantes`: DataFrame con la tabla de informantes.
-        - `temas`: Mapa tema -> DataFrame con columnas [user_id, pos, token].
+        - `temas`: Mapa tema -> DataFrame con columnas [user_id, pos, type].
     """
 
     name: str
     root: Path
     informantes: pd.DataFrame
-    temas: Dict[str, pd.DataFrame]  # tema -> df con columnas [user_id, pos, token]
+    temas: Dict[str, pd.DataFrame]  # tema -> df con columnas [user_id, pos, type]
 
 
 class DatasetService:
@@ -177,7 +177,7 @@ class DatasetService:
             df = pd.read_parquet(f)
 
             # Aseguramos el esquema esperado
-            required = {"user_id", "pos", "token"}
+            required = {"user_id", "pos", "type"}
             missing = required - set(df.columns)
             if missing:
                 raise ValueError(
@@ -186,7 +186,7 @@ class DatasetService:
                 )
 
             # Normalización ligera
-            df = df[["user_id", "pos", "token"]].copy()
+            df = df[["user_id", "pos", "type"]].copy()
             temas[tema_name] = df
 
         if not temas:
