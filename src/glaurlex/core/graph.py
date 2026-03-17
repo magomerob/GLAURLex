@@ -53,24 +53,24 @@ def community_leiden(graph: nx.Graph | nx.DiGraph, seed: int = 42) -> list[set]:
 def bigrams_for_tema(df: pd.DataFrame) -> pd.DataFrame:
     """! Genera bigramas por usuario (con conteos) para un tema.
 
-    @param df DataFrame con columnas [user_id, pos, token].
-    @return DataFrame con columnas [user_id, token_1, token_2, count].
+    @param df DataFrame con columnas [user_id, pos, type].
+    @return DataFrame con columnas [user_id, type_1, type_2, count].
     """
     if df.empty:
-        return pd.DataFrame(columns=["token_1", "token_2", "count"])
+        return pd.DataFrame(columns=["type_1", "type_2", "count"])
 
-    df = df[["user_id", "pos", "token"]].sort_values(["user_id", "pos"]).copy()
-    df["token_2"] = df.groupby("user_id")["token"].shift(-1)
-    df = df.dropna(subset=["token_2"])
+    df = df[["user_id", "pos", "type"]].sort_values(["user_id", "pos"]).copy()
+    df["type_2"] = df.groupby("user_id")["type"].shift(-1)
+    df = df.dropna(subset=["type_2"])
 
     if df.empty:
-        return pd.DataFrame(columns=["token_1", "token_2", "count"])
+        return pd.DataFrame(columns=["type_1", "type_2", "count"])
 
     bigrams = (
-        df.groupby(["token", "token_2"])
+        df.groupby(["type", "type_2"])
         .size()
         .reset_index(name="count")
-        .rename(columns={"token": "token_1"})
+        .rename(columns={"type": "type_1"})
     )
     return bigrams
 
@@ -78,33 +78,33 @@ def bigrams_for_tema(df: pd.DataFrame) -> pd.DataFrame:
 def bigrams_to_unordered(df_bigrams: pd.DataFrame) -> pd.DataFrame:
     """! Convierte bigramas ordenados a bigramas no ordenados.
 
-    @param df_bigrams DataFrame con columnas [token_1, token_2, count].
-    @return DataFrame con columnas [token_1, token_2, count] sin orden.
+    @param df_bigrams DataFrame con columnas [type_1, type_2, count].
+    @return DataFrame con columnas [type_1, type_2, count] sin orden.
     """
     if df_bigrams.empty:
-        return pd.DataFrame(columns=["token_1", "token_2", "count"])
+        return pd.DataFrame(columns=["type_1", "type_2", "count"])
 
-    df = df_bigrams[["token_1", "token_2", "count"]].copy()
-    tokens = df[["token_1", "token_2"]].astype(str).to_numpy()
-    tokens_sorted = pd.DataFrame([sorted(pair) for pair in tokens], columns=["token_1", "token_2"])
-    df[["token_1", "token_2"]] = tokens_sorted
+    df = df_bigrams[["type_1", "type_2", "count"]].copy()
+    types = df[["type_1", "type_2"]].astype(str).to_numpy()
+    types_sorted = pd.DataFrame([sorted(pair) for pair in types], columns=["type_1", "type_2"])
+    df[["type_1", "type_2"]] = types_sorted
 
-    unordered = df.groupby(["token_1", "token_2"], dropna=False)["count"].sum().reset_index()
+    unordered = df.groupby(["type_1", "type_2"], dropna=False)["count"].sum().reset_index()
     return unordered
 
 
 def bigrams_to_dirgraph(df_bigrams: pd.DataFrame) -> nx.DiGraph:
     """! Convierte un dataset de bigramas en un grafo dirigido con pesos.
 
-    @param df_bigrams DataFrame con columnas [token_1, token_2, count].
+    @param df_bigrams DataFrame con columnas [type_1, type_2, count].
     @return Graph grafo dirigido con pesos a partir de los bigramas.
     """
 
     G = nx.DiGraph()
 
     for _, row in df_bigrams.iterrows():
-        G.add_node(row["token_1"])
-        G.add_node(row["token_2"])
+        G.add_node(row["type_1"])
+        G.add_node(row["type_2"])
         G.add_weighted_edges_from([tuple(row.to_numpy())])
 
     return G
@@ -113,7 +113,7 @@ def bigrams_to_dirgraph(df_bigrams: pd.DataFrame) -> nx.DiGraph:
 def bigrams_to_undgraph(df_bigrams: pd.DataFrame) -> nx.Graph:
     """! Convierte un dataset de bigramas en un grafo no dirigido con pesos.
 
-    @param df_bigrams DataFrame con columnas [token_1, token_2, count].
+    @param df_bigrams DataFrame con columnas [type_1, type_2, count].
     @return Graph grafo a partir de los bigramas.
     """
 
@@ -122,8 +122,8 @@ def bigrams_to_undgraph(df_bigrams: pd.DataFrame) -> nx.Graph:
     und_bigrams = bigrams_to_unordered(df_bigrams)
 
     for _, row in und_bigrams.iterrows():
-        G.add_node(row["token_1"])
-        G.add_node(row["token_2"])
+        G.add_node(row["type_1"])
+        G.add_node(row["type_2"])
         G.add_weighted_edges_from([tuple(row.to_numpy())])
 
     return G
@@ -133,7 +133,7 @@ def node_stats(graph: nx.Graph | nx.DiGraph) -> pd.DataFrame:
     """! Calcula estadísticas básicas por nodo.
 
     Columnas base:
-    - node: etiqueta del nodo (token).
+    - node: etiqueta del nodo (type).
     - degree: grado no ponderado (número de vecinos/aristas).
     - degree_centrality: centralidad de grado (normalizada por NetworkX).
     - strength: grado ponderado usando `weight` como peso.

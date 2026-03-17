@@ -115,16 +115,16 @@ def pdprocessxlsx(path, respath):
         col_order = [c for c in tabla.columns]
         pos_map = {c: i for i, c in enumerate(col_order)}
 
-        tema_tokenized = tmp.melt("user_id", var_name="col", value_name="token")
+        tema_tokenized = tmp.melt("user_id", var_name="col", value_name="type")
 
-        tema_tokenized = tema_tokenized.dropna(subset=["token"]).copy()
-        tema_tokenized["token"] = tema_tokenized["token"].astype("string")
-        tema_tokenized["token"] = tema_tokenized["token"].str.strip()
+        tema_tokenized = tema_tokenized.dropna(subset=["type"]).copy()
+        tema_tokenized["type"] = tema_tokenized["type"].astype("string")
+        tema_tokenized["type"] = tema_tokenized["type"].str.strip()
 
         tema_tokenized = tema_tokenized[
-            (tema_tokenized["token"].notna())
-            & (tema_tokenized["token"] != "")
-            & (tema_tokenized["token"].str.lower() != "nan")
+            (tema_tokenized["type"].notna())
+            & (tema_tokenized["type"] != "")
+            & (tema_tokenized["type"].str.lower() != "nan")
         ].copy()
 
         tema_tokenized["pos"] = tema_tokenized["col"].map(pos_map)
@@ -132,7 +132,7 @@ def pdprocessxlsx(path, respath):
         tema_tokenized["pos"] = tema_tokenized["pos"].astype(int)
 
         tema_tokenized = (
-            tema_tokenized[["user_id", "pos", "token"]]
+            tema_tokenized[["user_id", "pos", "type"]]
             .sort_values(["user_id", "pos"])
             .reset_index(drop=True)
         )

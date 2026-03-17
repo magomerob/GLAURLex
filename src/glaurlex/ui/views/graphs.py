@@ -408,7 +408,7 @@ def render_graphs():
     view = view.head(int(top_n))
 
     column_help = {
-        "node": "Etiqueta del nodo (token).",
+        "node": "Etiqueta del nodo (type).",
         "degree": "Grado no ponderado (número de vecinos/aristas).",
         "degree_centrality": "Centralidad de grado (normalizada por NetworkX).",
         "strength": "Grado ponderado usando el peso `weight`.",
