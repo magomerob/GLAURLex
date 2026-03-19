@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 
 import matplotlib.pyplot as plt
+import networkx as nx
 import pandas as pd
 import seaborn as sns
 import streamlit as st
@@ -54,6 +55,32 @@ COLOR_COLS: dict[str, str] = {
     "weak_component_id": "Componente conexa (débil)",
     "strong_component_id": "Componente conexa (fuerte, solo dirigido)",
     "community_id": "Comunidad (Leiden)",
+}
+
+GRAPH_LAYOUTS: dict[str, str] = {
+    "spring": "Spring (Fruchterman-Reingold)",
+    "kamada_kawai": "Kamada-Kawai",
+    "circular": "Circular",
+    "spectral": "Espectral",
+    "shell": "Shell",
+    "random": "Aleatoria",
+}
+
+GRAPH_NODE_SIZE_BY: dict[str, str] = {
+    "uniform": "Uniforme",
+    "degree": "Grado",
+    "strength": "Fuerza",
+    "betweenness": "Intermediación",
+    "closeness": "Cercanía",
+    "pagerank": "PageRank",
+    "eigenvector": "Eigenvector",
+}
+
+GRAPH_NODE_COLOR_BY: dict[str, str] = {
+    "none": "Uniforme",
+    "community_id": "Comunidad (Leiden)",
+    "weak_component_id": "Componente conexa (débil)",
+    "strong_component_id": "Componente conexa (fuerte, solo dirigido)",
 }
 
 SNS_STYLES = ["whitegrid", "darkgrid", "white", "dark", "ticks"]
@@ -323,7 +350,7 @@ def render_charts():
     with col_type:
         chart_type = st.radio(
             "Tipo de gráfico",
-            ["Barras", "Scatter", "Histograma", "Boxplot"],
+            ["Barras", "Scatter", "Histograma", "Boxplot", "Grafo"],
             horizontal=True,
             key="charts::chart_type",
         )
@@ -336,7 +363,7 @@ def render_charts():
         )
 
     directed = False
-    if source in ("Nodos", "Combinada"):
+    if source in ("Nodos", "Combinada") or chart_type == "Grafo":
         directed = st.toggle(
             "Grafo dirigido (para métricas de nodos)", value=True, key="charts::directed"
         )
@@ -357,7 +384,7 @@ def render_charts():
     # -----------------------------------------------------------------------
 
     if chart_type == "Barras":
-        c1, c2, c3 = st.columns([2, 2, 1])
+        c1, c2 = st.columns(2)
         with c1:
             tema = st.selectbox("Tema", tema_names, key="charts::bar_tema")
         with c2:
@@ -366,13 +393,6 @@ def render_charts():
                 group_names,
                 default=[group_names[0]],
                 key="charts::bar_groups",
-            )
-        with c3:
-            bar_all = st.checkbox("Todos", value=False, key="charts::bar_all")
-            top_n = (
-                None
-                if bar_all
-                else st.number_input("Top N types", 5, 200, 20, key="charts::bar_top_n")
             )
 
         multi_group = len(bar_groups) > 1
@@ -398,7 +418,7 @@ def render_charts():
             )
 
     elif chart_type == "Scatter":
-        c1, c2, c3 = st.columns([2, 2, 1])
+        c1, c2 = st.columns(2)
         with c1:
             tema = st.selectbox("Tema", tema_names, key="charts::scat_tema")
         with c2:
@@ -407,13 +427,6 @@ def render_charts():
                 group_names,
                 default=[group_names[0]],
                 key="charts::scat_groups",
-            )
-        with c3:
-            scat_all = st.checkbox("Todos", value=False, key="charts::scat_all")
-            top_n = (
-                None
-                if scat_all
-                else st.number_input("Top N types", 5, 500, 100, key="charts::scat_top_n")
             )
 
         cx, cy = st.columns(2)
@@ -478,6 +491,50 @@ def render_charts():
         with cy:
             bins = st.slider("Número de bins", 5, 100, 30, key="charts::hist_bins")
 
+    elif chart_type == "Grafo":
+        c1, c2 = st.columns(2)
+        with c1:
+            tema = st.selectbox("Tema", tema_names, key="charts::graph_tema")
+        with c2:
+            graph_group = st.selectbox("Grupo", group_names, key="charts::graph_group")
+
+        c4, c5, c6 = st.columns(3)
+        with c4:
+            graph_layout = st.selectbox(
+                "Layout",
+                options=list(GRAPH_LAYOUTS.keys()),
+                format_func=lambda k: GRAPH_LAYOUTS[k],
+                key="charts::graph_layout",
+            )
+        with c5:
+            graph_node_size = st.selectbox(
+                "Tamaño de nodos por",
+                options=list(GRAPH_NODE_SIZE_BY.keys()),
+                format_func=lambda k: GRAPH_NODE_SIZE_BY[k],
+                key="charts::graph_node_size",
+            )
+        with c6:
+            graph_node_color = st.selectbox(
+                "Color de nodos por",
+                options=list(GRAPH_NODE_COLOR_BY.keys()),
+                format_func=lambda k: GRAPH_NODE_COLOR_BY[k],
+                key="charts::graph_node_color",
+            )
+
+        c7, c8, c9 = st.columns(3)
+        with c7:
+            graph_show_labels = st.toggle(
+                "Mostrar nombre del nodo", value=True, key="charts::graph_labels"
+            )
+        with c8:
+            graph_edge_width = st.toggle(
+                "Ancho de aristas por peso", value=True, key="charts::graph_edge_width"
+            )
+        with c9:
+            graph_seed = st.number_input(
+                "Semilla (layout)", min_value=0, max_value=9999, value=42, key="charts::graph_seed"
+            )
+
     else:  # Boxplot
         compare_by = st.radio(
             "Comparar por",
@@ -531,6 +588,29 @@ def render_charts():
             format_func=lambda k: available_cols[k],
             key="charts::box_col",
         )
+
+    # -----------------------------------------------------------------------
+    # Top N (compartido entre tipos de gráfico)
+    # -----------------------------------------------------------------------
+    ct1, ct2, ct3 = st.columns([1, 1, 2])
+    with ct1:
+        top_all = st.checkbox("Todos los elementos", value=False, key="charts::top_all")
+    with ct2:
+        top_n = (
+            None
+            if top_all
+            else st.number_input("Top N", min_value=5, max_value=1000, value=50, key="charts::top_n")
+        )
+    with ct3:
+        if top_all:
+            top_metric = col_keys[0]
+        else:
+            top_metric = st.selectbox(
+                "Métrica del top",
+                options=col_keys,
+                format_func=lambda k: available_cols[k],
+                key="charts::top_metric",
+            )
 
     # -----------------------------------------------------------------------
     # Opciones de exportación
@@ -597,10 +677,11 @@ def render_charts():
                         st.error(f"La columna '{metric}' no está disponible.")
                         plt.close(fig)
                         return
+                    sort_col = top_metric if top_metric in df_ref.columns else metric
                     ref_types = (
-                        df_ref.sort_values(metric, ascending=False)["type"].tolist()
+                        df_ref.sort_values(sort_col, ascending=False)["type"].tolist()
                         if top_n is None
-                        else df_ref.nlargest(int(top_n), metric)["type"].tolist()
+                        else df_ref.nlargest(int(top_n), sort_col)["type"].tolist()
                     )
 
                     frames = []
@@ -633,7 +714,8 @@ def render_charts():
                         st.error(f"La columna '{metric}' no está disponible.")
                         plt.close(fig)
                         return
-                    df_plot = df if top_n is None else df.nlargest(int(top_n), metric)
+                    sort_col = top_metric if top_metric in df.columns else metric
+                    df_plot = df if top_n is None else df.nlargest(int(top_n), sort_col)
 
                     if len(y_cols) == 1:
                         sns.barplot(data=df_plot, x="type", y=metric, ax=ax, color=primary_color)
@@ -671,7 +753,8 @@ def render_charts():
                         return
                     df_plot = df.dropna(subset=[x_col, y_col])
                     if top_n is not None:
-                        df_plot = df_plot.head(int(top_n))
+                        sort_col = top_metric if top_metric in df_plot.columns else x_col
+                        df_plot = df_plot.nlargest(int(top_n), sort_col)
 
                     df_plot, hue_col = _attach_color_col(
                         df_plot, color_key, ds, tema, scat_groups[0], directed, s.dataset_name
@@ -752,9 +835,10 @@ def render_charts():
                     df_plot = combined.dropna(subset=[x_col, y_col])
                     if top_n is not None:
                         # Top N por grupo (para no saturar el gráfico)
+                        sort_col = top_metric if top_metric in df_plot.columns else x_col
                         df_plot = pd.concat(
                             [
-                                grp.nlargest(int(top_n), x_col)
+                                grp.nlargest(int(top_n), sort_col)
                                 for _, grp in df_plot.groupby("Grupo")
                             ],
                             ignore_index=True,
@@ -813,6 +897,9 @@ def render_charts():
                         st.error(f"La columna '{hist_col}' no está disponible.")
                         plt.close(fig)
                         return
+                    if top_n is not None:
+                        sort_col = top_metric if top_metric in df.columns else hist_col
+                        df = df.nlargest(int(top_n), sort_col)
                     sns.histplot(data=df, x=hist_col, bins=bins, ax=ax, kde=True)
                     ax.set_title(
                         f"Distribución de {available_cols.get(hist_col, hist_col)} "
@@ -826,6 +913,15 @@ def render_charts():
                         st.error(f"La columna '{hist_col}' no está disponible.")
                         plt.close(fig)
                         return
+                    if top_n is not None:
+                        sort_col = top_metric if top_metric in combined.columns else hist_col
+                        combined = pd.concat(
+                            [
+                                grp.nlargest(int(top_n), sort_col)
+                                for _, grp in combined.groupby("Grupo")
+                            ],
+                            ignore_index=True,
+                        )
                     sns.histplot(
                         data=combined,
                         x=hist_col,
@@ -844,8 +940,138 @@ def render_charts():
                 ax.set_xlabel(available_cols.get(hist_col, hist_col))
                 prefix += f"_{hist_col}"
 
+            # --- Grafo ---
+            elif chart_type == "Grafo":
+                group = st.session_state.groups.get(graph_group, ALL_GROUP)
+                informantes_df = getattr(ds, "informantes", None)
+                informantes_f = (
+                    apply_group(informantes_df, group) if informantes_df is not None else None
+                )
+                df_tema_raw = ds.temas[tema]
+                informant_col = _infer_informant_col(df_tema_raw)
+                df_f = _filter_by_group(df_tema_raw, informantes_f, informant_col)
+                cache_key = f"{s.dataset_name}::{tema}::{graph_group}::{len(df_f)}"
+
+                bigrams = bigrams_for_tema(df_f)
+                G = bigrams_to_dirgraph(bigrams) if directed else bigrams_to_undgraph(bigrams)
+
+                if G.number_of_nodes() == 0:
+                    st.warning("El grafo está vacío para este tema/grupo.")
+                    plt.close(fig)
+                    return
+
+                # Filtrar al Top-N (o usar todos los nodos)
+                nod = _node_stats_cached(
+                    df_f, directed=directed, cache_key=cache_key + f"::nod{directed}"
+                )
+                if top_n is None:
+                    top_nodes = set(nod["node"].tolist())
+                else:
+                    sort_col = top_metric if top_metric in nod.columns else "strength"
+                    top_nodes = set(nod.nlargest(int(top_n), sort_col)["node"].tolist())
+                G_sub = G.subgraph(top_nodes).copy()
+
+                if G_sub.number_of_nodes() == 0:
+                    st.warning("No hay nodos con los parámetros seleccionados.")
+                    plt.close(fig)
+                    return
+
+                # Layout
+                _seed = int(graph_seed)
+                layout_fns = {
+                    "spring": lambda H: nx.spring_layout(H, weight="weight", seed=_seed),
+                    "kamada_kawai": lambda H: nx.kamada_kawai_layout(H, weight="weight"),
+                    "circular": lambda H: nx.circular_layout(H),
+                    "spectral": lambda H: nx.spectral_layout(H, weight="weight"),
+                    "shell": lambda H: nx.shell_layout(H),
+                    "random": lambda H: nx.random_layout(H, seed=_seed),
+                }
+                pos = layout_fns[graph_layout](G_sub)
+                node_order = list(G_sub.nodes())
+                nod_sub = nod[nod["node"].isin(top_nodes)]
+
+                # Tamaño de nodos
+                if graph_node_size == "uniform":
+                    node_sizes = [300] * len(node_order)
+                else:
+                    size_map = nod_sub.set_index("node")[graph_node_size].to_dict()
+                    vals = [size_map.get(n, 0) for n in node_order]
+                    min_v, max_v = min(vals), max(vals)
+                    rng = max_v - min_v if max_v > min_v else 1.0
+                    node_sizes = [200 + 2000 * (v - min_v) / rng for v in vals]
+
+                # Color de nodos
+                if graph_node_color == "none":
+                    node_colors = [primary_color] * len(node_order)
+                elif graph_node_color == "community_id":
+                    comm_df = _community_cached(
+                        df_f, directed, cache_key=cache_key + "::comm"
+                    )
+                    comm_map = comm_df.set_index("type")["community_id"].to_dict()
+                    ids = [comm_map.get(n, 0) for n in node_order]
+                    n_colors = max(ids) + 1 if ids else 1
+                    palette = sns.color_palette(sns_palette, n_colors=n_colors)
+                    node_colors = [palette[i % len(palette)] for i in ids]
+                else:
+                    if graph_node_color in nod_sub.columns:
+                        comp_map = nod_sub.set_index("node")[graph_node_color].to_dict()
+                        ids = [int(comp_map.get(n, 0)) for n in node_order]
+                    else:
+                        ids = [0] * len(node_order)
+                    n_colors = max(ids) + 1 if ids else 1
+                    palette = sns.color_palette(sns_palette, n_colors=n_colors)
+                    node_colors = [palette[i % len(palette)] for i in ids]
+
+                # Ancho de aristas
+                if graph_edge_width and G_sub.number_of_edges() > 0:
+                    weights = [G_sub[u][v].get("weight", 1) for u, v in G_sub.edges()]
+                    max_w = max(weights) if weights else 1.0
+                    edge_widths = [0.5 + 3.5 * w / max_w for w in weights]
+                else:
+                    edge_widths = [1.0] * G_sub.number_of_edges()
+
+                # Dibujar
+                ax.set_facecolor("#f8f9fa")
+                ax.axis("off")
+                nx.draw_networkx_nodes(
+                    G_sub, pos,
+                    nodelist=node_order,
+                    node_size=node_sizes,
+                    node_color=node_colors,
+                    ax=ax,
+                    alpha=0.85,
+                )
+                nx.draw_networkx_edges(
+                    G_sub, pos,
+                    width=edge_widths,
+                    ax=ax,
+                    alpha=0.5,
+                    arrows=directed,
+                    **({ "arrowsize": 12 } if directed else {}),
+                    edge_color="#888888",
+                )
+                if graph_show_labels:
+                    nx.draw_networkx_labels(
+                        G_sub, pos, ax=ax, font_size=7, font_color="#222222"
+                    )
+
+                color_label = GRAPH_NODE_COLOR_BY[graph_node_color]
+                size_label = GRAPH_NODE_SIZE_BY[graph_node_size]
+                nodes_label = "Todos" if top_n is None else f"Top {top_n}"
+                ax.set_title(
+                    f"Grafo — {tema} / {graph_group} "
+                    f"({nodes_label} nodos · color: {color_label} · tamaño: {size_label})"
+                )
+                prefix += f"_{tema}_{graph_group}_grafo"
+
             # --- Boxplot ---
             elif chart_type == "Boxplot":
+                def _box_filter(df: pd.DataFrame) -> pd.DataFrame:
+                    if top_n is None:
+                        return df
+                    sc = top_metric if top_metric in df.columns else (box_col if box_col in df.columns else None)
+                    return df.nlargest(int(top_n), sc) if sc else df
+
                 if compare_by == "Temas":
                     if not box_temas:
                         st.warning("Selecciona al menos un tema.")
@@ -853,9 +1079,9 @@ def render_charts():
                         return
                     frames = []
                     for t in box_temas:
-                        df_t = _load_merged(
+                        df_t = _box_filter(_load_merged(
                             ds, t, box_single_group, source, directed, s.dataset_name
-                        )
+                        ))
                         if box_col in df_t.columns:
                             frames.append(df_t[[box_col]].assign(Tema=t))
                     if not frames:
@@ -879,9 +1105,9 @@ def render_charts():
                         return
                     frames = []
                     for g in box_groups:
-                        df_g = _load_merged(
+                        df_g = _box_filter(_load_merged(
                             ds, box_single_tema, g, source, directed, s.dataset_name
-                        )
+                        ))
                         if box_col in df_g.columns:
                             frames.append(df_g[[box_col]].assign(Grupo=g))
                     if not frames:
@@ -906,7 +1132,7 @@ def render_charts():
                     frames = []
                     for t in box_temas:
                         for g in box_groups:
-                            df_tg = _load_merged(ds, t, g, source, directed, s.dataset_name)
+                            df_tg = _box_filter(_load_merged(ds, t, g, source, directed, s.dataset_name))
                             if box_col in df_tg.columns:
                                 frames.append(df_tg[[box_col]].assign(Tema=t, Grupo=g))
                     if not frames:
