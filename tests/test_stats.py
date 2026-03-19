@@ -20,7 +20,7 @@ from glaurlex.core.stats import estadisticas_df
 def df_example_1():
     return pd.DataFrame(
         {
-            "token": [
+            "type": [
                 # U1
                 "a",
                 "b",
@@ -74,7 +74,7 @@ def df_example_1():
 def df_example_2():
     return pd.DataFrame(
         {
-            "token": [
+            "type": [
                 # U1
                 "a",
                 "b",
@@ -107,7 +107,7 @@ def df_example_2():
 
 @pytest.fixture
 def empty_df():
-    return pd.DataFrame(columns=["token", "pos", "user_id"])
+    return pd.DataFrame(columns=["type", "pos", "user_id"])
 
 
 # ============================================================
@@ -116,12 +116,13 @@ def empty_df():
 
 
 def _assert_no_duplicate_token_per_user(df: pd.DataFrame) -> None:
-    assert not df.duplicated(subset=["user_id", "token"]).any()
+    assert not df.duplicated(subset=["user_id", "type"]).any()
 
 
 def _assert_basic_properties(stats: pd.DataFrame) -> None:
     assert set(stats.columns) == {
-        "token",
+        "type",
+        "tokens",
         "disponibilidad",
         "avg_pos",
         "aparición",
@@ -151,7 +152,7 @@ def test_example_1_structure(df_example_1):
 
 def test_example_1_freqs(df_example_1):
     # 9 filas, a/b/c aparecen 3 veces -> 1/3
-    stats = estadisticas_df(df_example_1).set_index("token")
+    stats = estadisticas_df(df_example_1).set_index("type")
     assert np.allclose(stats["freq_rel"], 1 / 3)
 
 
@@ -161,7 +162,7 @@ def test_example_1_avg_pos(df_example_1):
     b: pos {1,0,0} -> 1/3
     c: pos {2,2,1} -> 5/3
     """
-    stats = estadisticas_df(df_example_1).set_index("token")
+    stats = estadisticas_df(df_example_1).set_index("type")
     assert np.isclose(stats.loc["a", "avg_pos"], 1.0)
     assert np.isclose(stats.loc["b", "avg_pos"], 1 / 3)
     assert np.isclose(stats.loc["c", "avg_pos"], 5 / 3)
@@ -180,7 +181,7 @@ def test_example_1_disponibilidades(df_example_1):
       a = 0.472299
       c = 0.172385
     """
-    stats = estadisticas_df(df_example_1).set_index("token")
+    stats = estadisticas_df(df_example_1).set_index("type")
     assert np.isclose(stats.loc["b", "disponibilidad"], 0.772212, atol=1e-4)
     assert np.isclose(stats.loc["a", "disponibilidad"], 0.472299, atol=1e-4)
     assert np.isclose(stats.loc["c", "disponibilidad"], 0.172385, atol=1e-4)
@@ -199,7 +200,7 @@ def test_example_2_structure(df_example_2):
 
 def test_example_2_freqs(df_example_2):
     # 6 filas: a=3/6, b=1/6, c=1/6, d=1/6
-    stats = estadisticas_df(df_example_2).set_index("token")
+    stats = estadisticas_df(df_example_2).set_index("type")
     assert np.isclose(stats.loc["a", "freq_rel"], 3 / 6)
     assert np.isclose(stats.loc["b", "freq_rel"], 1 / 6)
     assert np.isclose(stats.loc["c", "freq_rel"], 1 / 6)
@@ -208,7 +209,7 @@ def test_example_2_freqs(df_example_2):
 
 def test_example_2_aparicion(df_example_2):
     # ninf=3: a en 3/3; b,c,d en 1/3
-    stats = estadisticas_df(df_example_2).set_index("token")
+    stats = estadisticas_df(df_example_2).set_index("type")
     assert np.isclose(stats.loc["a", "aparición"], 1.0)
     assert np.isclose(stats.loc["b", "aparición"], 1 / 3)
     assert np.isclose(stats.loc["c", "aparición"], 1 / 3)
@@ -218,7 +219,7 @@ def test_example_2_aparicion(df_example_2):
 def test_example_2_avg_pos(df_example_2):
     # a siempre en pos 0 -> 0
     # b,c,d siempre en pos 1 -> 1
-    stats = estadisticas_df(df_example_2).set_index("token")
+    stats = estadisticas_df(df_example_2).set_index("type")
     assert np.isclose(stats.loc["a", "avg_pos"], 0.0)
     assert np.isclose(stats.loc["b", "avg_pos"], 1.0)
     assert np.isclose(stats.loc["c", "avg_pos"], 1.0)
@@ -233,7 +234,7 @@ def test_example_2_disponibilidades(df_example_2):
       c = 0.0334196
       d = 0.0334196
     """
-    stats = estadisticas_df(df_example_2).set_index("token")
+    stats = estadisticas_df(df_example_2).set_index("type")
     assert np.isclose(stats.loc["a", "disponibilidad"], 1.0, atol=1e-6)
     assert np.isclose(stats.loc["b", "disponibilidad"], 0.0334196, atol=1e-4)
     assert np.isclose(stats.loc["c", "disponibilidad"], 0.0334196, atol=1e-4)
@@ -251,7 +252,8 @@ def test_empty_df(empty_df):
     assert isinstance(stats, pd.DataFrame)
     assert len(stats) == 0
     assert set(stats.columns) == {
-        "token",
+        "type",
+        "tokens",
         "freq_rel",
         "disponibilidad",
         "avg_pos",

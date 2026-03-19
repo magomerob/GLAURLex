@@ -102,25 +102,25 @@ def test_pdprocessxlsx_happy_path(tmp_path: Path) -> None:
     anim = pd.read_parquet(animales_parquet)
 
     # Debe tener columnas esperadas
-    assert set(anim.columns) == {"user_id", "pos", "token"}
+    assert set(anim.columns) == {"user_id", "pos", "type"}
 
     # user_id debe ser 1..n filas originales
     assert sorted(anim["user_id"].unique().tolist()) == [1, 2, 3]
 
-    # Tokens limpiados:
+    # Types limpiados:
     # fila1: A="gato" (B era "nan" → se elimina), 111
     # fila2: B="perro" (A era "" → se elimina), 222
     # fila3: 333
 
-    tokens_by_user = anim.groupby("user_id")["token"].apply(list).to_dict()
+    tokens_by_user = anim.groupby("user_id")["type"].apply(list).to_dict()
 
     assert tokens_by_user.get(1) == ["gato", "111"]
     assert tokens_by_user.get(2) == ["perro", "222"]
     assert tokens_by_user.get(3, []) == ["333"]
 
     # Posiciones: A=0, B=1 (Unnamed eliminado)
-    # Para user 1 token "gato" venía de A -> pos 0
-    row_gato = anim[(anim["user_id"] == 1) & (anim["token"] == "gato")].iloc[0]
+    # Para user 1 type "gato" venía de A -> pos 0
+    row_gato = anim[(anim["user_id"] == 1) & (anim["type"] == "gato")].iloc[0]
     assert int(row_gato["pos"]) == 0
 
 
