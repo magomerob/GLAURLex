@@ -10,16 +10,16 @@ from glaurlex.core.graph import (
 
 
 def _sorted(df: pd.DataFrame) -> pd.DataFrame:
-    return df.sort_values(["token_1", "token_2"]).reset_index(drop=True)
+    return df.sort_values(["type_1", "type_2"]).reset_index(drop=True)
 
 
 def test_bigrams_empty():
-    df = pd.DataFrame(columns=["user_id", "pos", "token"])
+    df = pd.DataFrame(columns=["user_id", "pos", "type"])
     out = bigrams_for_tema(df)
 
     assert isinstance(out, pd.DataFrame)
     assert len(out) == 0
-    assert set(out.columns) == {"token_1", "token_2", "count"}
+    assert set(out.columns) == {"type_1", "type_2", "count"}
 
 
 def test_bigrams_single_token_per_user():
@@ -27,7 +27,7 @@ def test_bigrams_single_token_per_user():
         {
             "user_id": [1, 2],
             "pos": [0, 0],
-            "token": ["a", "b"],
+            "type": ["a", "b"],
         }
     )
     out = bigrams_for_tema(df)
@@ -39,15 +39,15 @@ def test_bigrams_counts():
         {
             "user_id": [1, 1, 1, 1, 2, 2],
             "pos": [0, 1, 2, 3, 0, 1],
-            "token": ["a", "b", "c", "d", "b", "c"],
+            "type": ["a", "b", "c", "d", "b", "c"],
         }
     )
 
     out = bigrams_for_tema(df)
     expected = pd.DataFrame(
         {
-            "token_1": ["a", "b", "c"],
-            "token_2": ["b", "c", "d"],
+            "type_1": ["a", "b", "c"],
+            "type_2": ["b", "c", "d"],
             "count": [1, 2, 1],
         }
     )
@@ -60,18 +60,18 @@ def test_bigrams_order():
         {
             "user_id": [1, 1, 2, 2],
             "pos": [0, 1, 0, 1],
-            "token": ["a", "b", "b", "a"],
+            "type": ["a", "b", "b", "a"],
         }
     )
 
     out = bigrams_for_tema(df)
     expected = pd.DataFrame(
         {
-            "token_1": [
+            "type_1": [
                 "a",
                 "b",
             ],
-            "token_2": ["b", "a"],
+            "type_2": ["b", "a"],
             "count": [1, 1],
         }
     )
@@ -82,8 +82,8 @@ def test_bigrams_order():
 def test_bigrams_to_unordered():
     df = pd.DataFrame(
         {
-            "token_1": ["a", "b", "c"],
-            "token_2": ["b", "a", "d"],
+            "type_1": ["a", "b", "c"],
+            "type_2": ["b", "a", "d"],
             "count": [2, 3, 1],
         }
     )
@@ -91,8 +91,8 @@ def test_bigrams_to_unordered():
     out = bigrams_to_unordered(df)
     expected = pd.DataFrame(
         {
-            "token_1": ["a", "c"],
-            "token_2": ["b", "d"],
+            "type_1": ["a", "c"],
+            "type_2": ["b", "d"],
             "count": [5, 1],
         }
     )
@@ -103,8 +103,8 @@ def test_bigrams_to_unordered():
 def test_bigrams_to_dirgraph_weights_and_nodes():
     df = pd.DataFrame(
         {
-            "token_1": ["a", "b", "a"],
-            "token_2": ["b", "c", "c"],
+            "type_1": ["a", "b", "a"],
+            "type_2": ["b", "c", "c"],
             "count": [2, 1, 4],
         }
     )
@@ -125,8 +125,8 @@ def test_bigrams_to_dirgraph_weights_and_nodes():
 def test_bigrams_to_undgraph_edges():
     df = pd.DataFrame(
         {
-            "token_1": ["a", "b", "c"],
-            "token_2": ["b", "a", "d"],
+            "type_1": ["a", "b", "c"],
+            "type_2": ["b", "a", "d"],
             "count": [2, 3, 1],
         }
     )
