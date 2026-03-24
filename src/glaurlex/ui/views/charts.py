@@ -599,7 +599,9 @@ def render_charts():
         top_n = (
             None
             if top_all
-            else st.number_input("Top N", min_value=5, max_value=1000, value=50, key="charts::top_n")
+            else st.number_input(
+                "Top N", min_value=5, max_value=1000, value=50, key="charts::top_n"
+            )
         )
     with ct3:
         if top_all:
@@ -1004,9 +1006,7 @@ def render_charts():
                 if graph_node_color == "none":
                     node_colors = [primary_color] * len(node_order)
                 elif graph_node_color == "community_id":
-                    comm_df = _community_cached(
-                        df_f, directed, cache_key=cache_key + "::comm"
-                    )
+                    comm_df = _community_cached(df_f, directed, cache_key=cache_key + "::comm")
                     comm_map = comm_df.set_index("type")["community_id"].to_dict()
                     ids = [comm_map.get(n, 0) for n in node_order]
                     n_colors = max(ids) + 1 if ids else 1
@@ -1034,7 +1034,8 @@ def render_charts():
                 ax.set_facecolor("#f8f9fa")
                 ax.axis("off")
                 nx.draw_networkx_nodes(
-                    G_sub, pos,
+                    G_sub,
+                    pos,
                     nodelist=node_order,
                     node_size=node_sizes,
                     node_color=node_colors,
@@ -1042,18 +1043,17 @@ def render_charts():
                     alpha=0.85,
                 )
                 nx.draw_networkx_edges(
-                    G_sub, pos,
+                    G_sub,
+                    pos,
                     width=edge_widths,
                     ax=ax,
                     alpha=0.5,
                     arrows=directed,
-                    **({ "arrowsize": 12 } if directed else {}),
+                    **({"arrowsize": 12} if directed else {}),
                     edge_color="#888888",
                 )
                 if graph_show_labels:
-                    nx.draw_networkx_labels(
-                        G_sub, pos, ax=ax, font_size=7, font_color="#222222"
-                    )
+                    nx.draw_networkx_labels(G_sub, pos, ax=ax, font_size=7, font_color="#222222")
 
                 color_label = GRAPH_NODE_COLOR_BY[graph_node_color]
                 size_label = GRAPH_NODE_SIZE_BY[graph_node_size]
@@ -1066,10 +1066,15 @@ def render_charts():
 
             # --- Boxplot ---
             elif chart_type == "Boxplot":
+
                 def _box_filter(df: pd.DataFrame) -> pd.DataFrame:
                     if top_n is None:
                         return df
-                    sc = top_metric if top_metric in df.columns else (box_col if box_col in df.columns else None)
+                    sc = (
+                        top_metric
+                        if top_metric in df.columns
+                        else (box_col if box_col in df.columns else None)
+                    )
                     return df.nlargest(int(top_n), sc) if sc else df
 
                 if compare_by == "Temas":
@@ -1079,9 +1084,9 @@ def render_charts():
                         return
                     frames = []
                     for t in box_temas:
-                        df_t = _box_filter(_load_merged(
-                            ds, t, box_single_group, source, directed, s.dataset_name
-                        ))
+                        df_t = _box_filter(
+                            _load_merged(ds, t, box_single_group, source, directed, s.dataset_name)
+                        )
                         if box_col in df_t.columns:
                             frames.append(df_t[[box_col]].assign(Tema=t))
                     if not frames:
@@ -1105,9 +1110,9 @@ def render_charts():
                         return
                     frames = []
                     for g in box_groups:
-                        df_g = _box_filter(_load_merged(
-                            ds, box_single_tema, g, source, directed, s.dataset_name
-                        ))
+                        df_g = _box_filter(
+                            _load_merged(ds, box_single_tema, g, source, directed, s.dataset_name)
+                        )
                         if box_col in df_g.columns:
                             frames.append(df_g[[box_col]].assign(Grupo=g))
                     if not frames:
@@ -1132,7 +1137,9 @@ def render_charts():
                     frames = []
                     for t in box_temas:
                         for g in box_groups:
-                            df_tg = _box_filter(_load_merged(ds, t, g, source, directed, s.dataset_name))
+                            df_tg = _box_filter(
+                                _load_merged(ds, t, g, source, directed, s.dataset_name)
+                            )
                             if box_col in df_tg.columns:
                                 frames.append(df_tg[[box_col]].assign(Tema=t, Grupo=g))
                     if not frames:
