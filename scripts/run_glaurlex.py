@@ -22,6 +22,7 @@ def main() -> int:
         "--server.address=localhost",
         "--browser.serverAddress=localhost",
         "--browser.gatherUsageStats=false",
+        "--server.headless=true",
     ]
     return stcli.main()
 
