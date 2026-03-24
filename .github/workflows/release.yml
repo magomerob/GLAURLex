@@ -35,14 +35,17 @@ jobs:
       - name: Install PyInstaller
         run: poetry run pip install pyinstaller
 
-      - name: Build onefile EXE
-        run: poetry run pyinstaller --onefile --name GLAURLex --collect-all streamlit --add-data "src/glaurlex/ui;glaurlex/ui" scripts/run_glaurlex.py
+      - name: Build EXE (directory mode)
+        run: poetry run pyinstaller --name GLAURLex --collect-all streamlit --add-data "src/glaurlex/ui;glaurlex/ui" scripts/run_glaurlex.py
+
+      - name: Zip dist directory
+        run: cd dist && 7z a GLAURLex-windows.zip GLAURLex/
 
       - name: Upload EXE artifact
         uses: actions/upload-artifact@v4
         with:
           name: glaurlex-windows-exe
-          path: dist/GLAURLex.exe
+          path: dist/GLAURLex-windows.zip
 
   build-docs:
     runs-on: ubuntu-latest
@@ -84,5 +87,5 @@ jobs:
           name: ${{ github.ref_name }}
           generate_release_notes: true
           files: |
-            glaurlex-windows-exe/GLAURLex.exe
+            glaurlex-windows-exe/GLAURLex-windows.zip
             doxygen-html/doxygen-html.zip
