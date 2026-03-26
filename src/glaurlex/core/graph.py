@@ -363,6 +363,7 @@ def graph_stats(
     - density: densidad del grafo (`nx.density`).
     - components: número de componentes (fuertemente conexas si es dirigido, conexas si no).
     - avg_path_length: longitud de camino promedio sin pesos en la mayor componente conexa.
+    - assortativity: coeficiente de asortatividad de grado (`nx.degree_assortativity_coefficient`). `None` si no se puede calcular.
 
     Si es no dirigido (y `include_small_world=True`):
     - SWI: Small-worldness index.
@@ -383,6 +384,7 @@ def graph_stats(
             "density": 0.0,
             "components": 0,
             "avg_path_length": 0.0,
+            "assortativity": None,
         }
 
     if graph.is_directed():
@@ -408,6 +410,11 @@ def graph_stats(
         float(node_stats_df["strength"].mean() / 2) if "strength" in node_stats_df else 0.0
     )
 
+    try:
+        assortativity = float(nx.degree_assortativity_coefficient(graph))
+    except (nx.NetworkXError, ZeroDivisionError):
+        assortativity = None
+
     ret = {
         "diameter": diameter,
         "avg_clustering": float(nx.average_clustering(graph, weight="weight")),
@@ -416,6 +423,7 @@ def graph_stats(
         "density": float(nx.density(graph)),
         "components": len(wccomponents),
         "avg_path_length": avg_path_length,
+        "assortativity": assortativity,
     }
 
     if include_small_world:
