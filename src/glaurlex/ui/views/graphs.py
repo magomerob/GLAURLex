@@ -276,6 +276,7 @@ def render_graphs():
         "Grado prom.": [gstats["avg_degree"]],
         "Fuerza prom.": [gstats["avg_strength"]],
         "Clustering prom.": [gstats["avg_clustering"]],
+        "Asortatividad": [gstats.get("assortativity")],
     }
     gstats_help = {
         "Diámetro": "Diámetro de la mayor componente del grafo.",
@@ -286,6 +287,7 @@ def render_graphs():
         "Grado prom.": "Promedio de grado (sin pesos).",
         "Fuerza prom.": "Promedio de grado ponderado por `weight`.",
         "Clustering prom.": "Coeficiente de clustering promedio ponderado.",
+        "Asortatividad": "Coeficiente de asortatividad de grado. Mide la tendencia de los nodos a conectarse con otros de grado similar. Rango [-1, 1].",
     }
     gstats_column_config = {
         "Diámetro": st.column_config.NumberColumn("Diámetro", help=gstats_help["Diámetro"]),
@@ -309,6 +311,9 @@ def render_graphs():
         ),
         "Clustering prom.": st.column_config.NumberColumn(
             "Clustering prom.", help=gstats_help["Clustering prom."], format="%.4f"
+        ),
+        "Asortatividad": st.column_config.NumberColumn(
+            "Asortatividad", help=gstats_help["Asortatividad"], format="%.4f"
         ),
     }
     st.dataframe(gstats_view, width="stretch", hide_index=True, column_config=gstats_column_config)
