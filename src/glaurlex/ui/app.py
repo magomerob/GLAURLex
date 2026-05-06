@@ -8,6 +8,7 @@ from glaurlex.ui.state import ensure_state, has_dataset_loaded, sync_query_state
 from glaurlex.ui.views.charts import render_charts
 from glaurlex.ui.views.graphs import render_graphs
 from glaurlex.ui.views.grouping import render_grouping
+from glaurlex.ui.views.inference import render_inference
 from glaurlex.ui.views.load_data import render_load_data
 from glaurlex.ui.views.visualize import render_visualize
 
@@ -40,7 +41,14 @@ def main():
 
     # Si no hay dataset, bloqueamos visualización y grafos en la UI
     if has_dataset_loaded():
-        options = ["Carga de datos", "Grupos", "Estadísticas", "Grafos", "Gráficos"]
+        options = [
+            "Carga de datos",
+            "Grupos",
+            "Estadísticas",
+            "Grafos",
+            "Gráficos",
+            "Inferencia",
+        ]
     else:
         options = [
             "Carga de datos",
@@ -48,6 +56,7 @@ def main():
             "Estadísticas (bloqueado)",
             "Grafos (bloqueado)",
             "Gráficos (bloqueado)",
+            "Inferencia (bloqueado)",
         ]
 
     page_token_to_prefix = {
@@ -56,6 +65,7 @@ def main():
         "stats": "Estadísticas",
         "graphs": "Grafos",
         "charts": "Gráficos",
+        "inference": "Inferencia",
     }
     page_prefix_to_token = {v: k for k, v in page_token_to_prefix.items()}
 
@@ -105,6 +115,8 @@ def main():
         render_graphs()
     elif page.startswith("Gráficos"):
         render_charts()
+    elif page.startswith("Inferencia"):
+        render_inference()
 
 
 if __name__ == "__main__":
