@@ -1,0 +1,61 @@
+---
+# Authelia config para desarrollo local (.localhost, sin TLS público).
+
+server:
+  address: "tcp://0.0.0.0:9091"
+
+log:
+  level: debug
+
+theme: light
+
+totp:
+  issuer: GLAURLex (dev)
+
+authentication_backend:
+  password_reset:
+    disable: true
+  file:
+    path: /config/users_database.yml
+    password:
+      algorithm: argon2
+      argon2:
+        variant: argon2id
+        iterations: 3
+        memory: 65536
+        parallelism: 4
+        key_length: 32
+        salt_length: 16
+
+access_control:
+  default_policy: deny
+  rules:
+    - domain: "auth.glaurlex.localhost"
+      policy: bypass
+    - domain: "app.glaurlex.localhost"
+      policy: one_factor
+
+session:
+  name: authelia_session
+  same_site: lax
+  inactivity: 1h
+  expiration: 12h
+  remember_me: 1M
+  cookies:
+    - domain: "glaurlex.localhost"
+      authelia_url: "https://auth.glaurlex.localhost/"
+      default_redirection_url: "https://app.glaurlex.localhost/"
+
+regulation:
+  max_retries: 10
+  find_time: 2m
+  ban_time: 5m
+
+storage:
+  local:
+    path: /data/db.sqlite3
+
+notifier:
+  disable_startup_check: true
+  filesystem:
+    filename: /data/notifications.txt

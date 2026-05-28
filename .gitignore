@@ -207,3 +207,10 @@ marimo/_lsp/
 __marimo__/
 
 .data/
+
+# Despliegue: secretos y artefactos generados localmente
+deploy/traefik/acme.json
+deploy/authelia/secrets/*
+!deploy/authelia/secrets/.gitignore
+
+CLAUDE.md

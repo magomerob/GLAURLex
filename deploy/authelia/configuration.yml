@@ -1,0 +1,65 @@
+---
+# Authelia config — backend de auth para Traefik forwardAuth.
+# Los secretos (JWT, session, storage encryption) se inyectan por variables
+# de entorno *_FILE definidas en docker-compose.yml.
+
+server:
+  address: "tcp://0.0.0.0:9091"
+
+log:
+  level: info
+
+theme: dark
+
+totp:
+  issuer: GLAURLex
+
+authentication_backend:
+  password_reset:
+    disable: true
+  file:
+    path: /config/users_database.yml
+    password:
+      algorithm: argon2
+      argon2:
+        variant: argon2id
+        iterations: 3
+        memory: 65536
+        parallelism: 4
+        key_length: 32
+        salt_length: 16
+
+access_control:
+  default_policy: deny
+  rules:
+    # Acceso al portal de Authelia (siempre abierto)
+    - domain: ${AUTH_HOST}
+      policy: bypass
+    # La app exige sesión válida (un solo factor)
+    - domain: ${APP_HOST}
+      policy: one_factor
+
+session:
+  name: authelia_session
+  same_site: lax
+  inactivity: 1h
+  expiration: 12h
+  remember_me: 1M
+  cookies:
+    - domain: ${COOKIE_DOMAIN}
+      authelia_url: https://${AUTH_HOST}/
+      default_redirection_url: https://${APP_HOST}/
+
+regulation:
+  max_retries: 5
+  find_time: 2m
+  ban_time: 10m
+
+storage:
+  local:
+    path: /data/db.sqlite3
+
+notifier:
+  disable_startup_check: true
+  filesystem:
+    filename: /data/notifications.txt

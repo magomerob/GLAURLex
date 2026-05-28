@@ -1,0 +1,30 @@
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+log:
+  level: INFO
+
+accessLog: {}
+
+api:
+  dashboard: true
+  insecure: true   # dashboard accesible en http://127.0.0.1:8080 (sólo dev)
+
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: glaurlex_proxy_dev
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+# Sin certificatesResolvers: Traefik servirá HTTPS con el certificado
+# por defecto autogenerado (self-signed). El navegador mostrará warning.

@@ -2,7 +2,13 @@ from __future__ import annotations
 
 import streamlit as st
 
-from glaurlex.ui.state import ensure_state, has_dataset_loaded, sync_query_state
+from glaurlex.ui.state import (
+    current_username,
+    ensure_state,
+    has_dataset_loaded,
+    is_multi_tenant,
+    sync_query_state,
+)
 
 # Páginas
 from glaurlex.ui.views.charts import render_charts
@@ -39,6 +45,9 @@ def main():
     )
 
     # Sidebar navigation (una sola vez -> evita duplicados)
+    if is_multi_tenant():
+        user = current_username() or "?"
+        st.sidebar.success(f"Sesión: **{user}**")
     st.sidebar.header("Navegación")
 
     # Si no hay dataset, bloqueamos visualización y grafos en la UI

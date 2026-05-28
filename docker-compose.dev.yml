@@ -1,0 +1,97 @@
+# Stack para DESARROLLO LOCAL.
+#
+# Diferencias con docker-compose.yml (prod):
+#   - Hostnames `*.localhost` (requieren /etc/hosts).
+#   - Sin Let's Encrypt: Traefik usa su cert autogenerado (warning del navegador).
+#   - Datos por usuario bajo ./var/dev-data/<user>/processed.
+#   - Usuarios y secretos pre-cargados via scripts/dev-up.sh (alice/changeme).
+#   - Dashboard de Traefik expuesto en http://127.0.0.1:8080.
+#
+# Uso:
+#   ./scripts/dev-up.sh           # primera vez (genera secretos + arranca)
+#   docker compose -f docker-compose.dev.yml down
+#
+# /etc/hosts (una sola vez):
+#   127.0.0.1   app.glaurlex.localhost auth.glaurlex.localhost
+
+name: glaurlex-dev
+
+services:
+  traefik:
+    image: traefik:v3.7.1
+    restart: unless-stopped
+    command:
+      - --configFile=/etc/traefik/traefik.yml
+    ports:
+      - "127.0.0.1:80:80"
+      - "127.0.0.1:443:443"
+      - "127.0.0.1:8080:8080"   # dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./deploy/traefik/traefik.dev.yml:/etc/traefik/traefik.yml:ro
+      - ./deploy/traefik/dynamic-dev:/etc/traefik/dynamic:ro
+    networks:
+      - proxy
+
+  authelia:
+    image: authelia/authelia:4.39.20
+    restart: unless-stopped
+    expose:
+      - "9091"
+    environment:
+      - TZ=Europe/Madrid
+      - AUTHELIA_JWT_SECRET_FILE=/secrets/jwt_secret
+      - AUTHELIA_SESSION_SECRET_FILE=/secrets/session_secret
+      - AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE=/secrets/storage_encryption_key
+    volumes:
+      - ./deploy/authelia/configuration.dev.yml:/config/configuration.yml:ro
+      - ./deploy/authelia/users_database.dev.yml:/config/users_database.yml:ro
+      - ./deploy/authelia/secrets:/secrets:ro
+      - authelia_dev_data:/data
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.authelia.rule=Host(`auth.glaurlex.localhost`)
+      - traefik.http.routers.authelia.entrypoints=websecure
+      - traefik.http.routers.authelia.tls=true
+      - traefik.http.services.authelia.loadbalancer.server.port=9091
+
+  glaurlex:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PUID: ${PUID:-1000}
+        PGID: ${PGID:-1000}
+    image: glaurlex:dev
+    restart: unless-stopped
+    user: "${PUID:-1000}:${PGID:-1000}"
+    expose:
+      - "8501"
+    environment:
+      - GLAURLEX_DATA_DIR=/data
+      - GLAURLEX_REMOTE_USER_HEADER=Remote-User
+      - GLAURLEX_REQUIRE_AUTH=1
+      - APP_ENV=dev
+    volumes:
+      - ./var/dev-data:/data
+    networks:
+      - proxy
+    depends_on:
+      - authelia
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.glaurlex.rule=Host(`app.glaurlex.localhost`)
+      - traefik.http.routers.glaurlex.entrypoints=websecure
+      - traefik.http.routers.glaurlex.tls=true
+      - traefik.http.routers.glaurlex.middlewares=authelia@file
+      - traefik.http.services.glaurlex.loadbalancer.server.port=8501
+      - traefik.http.services.glaurlex.loadbalancer.sticky=true
+
+networks:
+  proxy:
+    name: glaurlex_proxy_dev
+
+volumes:
+  authelia_dev_data:

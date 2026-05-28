@@ -1,0 +1,22 @@
+---
+# Base de datos de usuarios de Authelia (modo file).
+#
+# Para añadir/editar usuarios:
+#   1. Genera un hash argon2id:
+#        docker run --rm authelia/authelia:4.39 authelia crypto hash generate argon2 -- 'TU_PASSWORD'
+#   2. Copia el string `$argon2id$...` a la clave `password` del usuario.
+#
+# El campo `displayname` se expone en la cabecera Remote-Name.
+# La GLAURLex usa la *clave* del usuario (Remote-User) como nombre de su
+# sandbox de datos, así que conviene usar identificadores cortos y seguros
+# (a-z, 0-9, _, -, .).
+
+users:
+  alice:
+    disabled: false
+    displayname: "Alice Example"
+    # Password de ejemplo: "changeme"
+    password: "$argon2id$v=19$m=65536,t=3,p=4$REEMPLAZA_ESTE_HASH"
+    email: alice@example.com
+    groups:
+      - users
