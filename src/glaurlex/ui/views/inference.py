@@ -500,9 +500,7 @@ def render_inference():
         on_change=_keep_inference_tab_selected,
     )
     if active_tab not in TAB_LABELS:
-        active_tab = st.session_state.get(
-            "inference::_active_tab_prev", TAB_LABELS[0]
-        )
+        active_tab = st.session_state.get("inference::_active_tab_prev", TAB_LABELS[0])
 
     # =======================================================================
     # TAB 1 — Análisis descriptivo

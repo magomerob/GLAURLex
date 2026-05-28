@@ -112,9 +112,7 @@ def render_variables() -> None:
     )
 
     # Niveles únicos (orden alfabético por defecto)
-    raw_levels = sorted(
-        informantes[sel_col].dropna().astype(str).unique().tolist(), key=str
-    )
+    raw_levels = sorted(informantes[sel_col].dropna().astype(str).unique().tolist(), key=str)
     current_cfg = cfg.get(sel_col, {})
     is_ordinal = st.toggle(
         "Marcar como ordinal",
@@ -129,9 +127,7 @@ def render_variables() -> None:
     if state_key not in st.session_state:
         # Inicializar con el orden guardado + cualquier nivel nuevo al final.
         seen = set(saved_order)
-        st.session_state[state_key] = saved_order + [
-            lv for lv in raw_levels if lv not in seen
-        ]
+        st.session_state[state_key] = saved_order + [lv for lv in raw_levels if lv not in seen]
     else:
         # Resincronizar si han aparecido niveles nuevos en datos.
         existing = set(st.session_state[state_key])
@@ -139,9 +135,7 @@ def render_variables() -> None:
             if lv not in existing:
                 st.session_state[state_key].append(lv)
         # Y eliminar niveles que ya no existen en los datos.
-        st.session_state[state_key] = [
-            lv for lv in st.session_state[state_key] if lv in raw_levels
-        ]
+        st.session_state[state_key] = [lv for lv in st.session_state[state_key] if lv in raw_levels]
 
     if is_ordinal:
         st.markdown(
@@ -191,10 +185,7 @@ def render_variables() -> None:
                 cfg[sel_col] = {"ordinal": True, "order": ordered}
                 save_variables(processed_dir, s.dataset_name, cfg)
                 st.session_state["variables"] = cfg
-                st.success(
-                    f"Variable '{sel_col}' marcada como ordinal con "
-                    f"{len(ordered)} niveles."
-                )
+                st.success(f"Variable '{sel_col}' marcada como ordinal con {len(ordered)} niveles.")
                 st.rerun()
 
         with c2:

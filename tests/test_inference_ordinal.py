@@ -59,9 +59,7 @@ def test_kgroup_kwargs_unchanged_when_order_omitted(trend_df: pd.DataFrame):
 
 def test_extra_levels_in_order_are_ignored(trend_df: pd.DataFrame):
     """Levels declared in `order` but not in data must not crash."""
-    res = compare_groups(
-        trend_df, "metric", "level", order=["a", "b", "c", "ghost"]
-    )
+    res = compare_groups(trend_df, "metric", "level", order=["a", "b", "c", "ghost"])
     # Descriptive table only includes data levels.
     assert set(res.descriptives["level"]) == {"a", "b", "c"}
     assert res.trend is not None
@@ -109,9 +107,7 @@ _GROUP_MATRIX = [
     _GROUP_MATRIX,
     ids=[c[0] for c in _GROUP_MATRIX],
 )
-def test_compare_groups_matrix_shape_and_signal(
-    case_id, means, expected_kind, has_effect, seed
-):
+def test_compare_groups_matrix_shape_and_signal(case_id, means, expected_kind, has_effect, seed):
     """kind, n_total y dirección de los p-values según el caso."""
     df = _build_groups_df(means, n_per_group=25, seed=seed)
     res = compare_groups(df, "metric", "level")

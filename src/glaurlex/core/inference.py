@@ -102,9 +102,7 @@ def informant_metrics(
     # Mergear con informantes para incluir las variables sociolinguísticas
     inf = informantes.copy()
     if "CODIGO_INFORMANTE" in inf.columns:
-        merged = metrics_df.merge(
-            inf, left_on="user_id", right_on="CODIGO_INFORMANTE", how="left"
-        )
+        merged = metrics_df.merge(inf, left_on="user_id", right_on="CODIGO_INFORMANTE", how="left")
     else:
         inf = inf.reset_index(drop=False).rename(columns={"index": "_inf_idx"})
         inf["user_id"] = inf["_inf_idx"] + 1
@@ -263,9 +261,7 @@ def _ordered_levels(work_levels: List[Any], order: Optional[List[str]]) -> List[
             ordered.append(str_to_orig[key])
             seen.add(key)
 
-    extras = sorted(
-        (lv for k, lv in str_to_orig.items() if k not in seen), key=str
-    )
+    extras = sorted((lv for k, lv in str_to_orig.items() if k not in seen), key=str)
     return ordered + extras
 
 
@@ -450,7 +446,9 @@ def compare_groups(
     posthoc_df = None
     if posthoc and len(groups) >= 3:
         rows = []
-        levels_used = [lv for lv, g in zip(levels, [groups[i] for i in range(len(groups))]) if len(g) >= 2]
+        levels_used = [
+            lv for lv, g in zip(levels, [groups[i] for i in range(len(groups))]) if len(g) >= 2
+        ]
         m = len(levels_used) * (len(levels_used) - 1) // 2
         for i in range(len(levels_used)):
             for j in range(i + 1, len(levels_used)):
@@ -537,7 +535,7 @@ def correlation(
             "regresión_intercepto": float(intercept),
             "regresión_se": float(se_lin),
             "regresión_p_value": float(p_lin),
-            "R²": float(r_lin ** 2),
+            "R²": float(r_lin**2),
         },
         work,
     )

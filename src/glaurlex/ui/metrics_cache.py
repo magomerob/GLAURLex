@@ -5,6 +5,7 @@ Centraliza los wrappers `@st.cache_data` para evitar que distintas vistas
 recomputen las mismas métricas (estadísticas por type, métricas por informante,
 métricas de nodo, bigramas).
 """
+
 from __future__ import annotations
 
 import pandas as pd
@@ -48,9 +49,7 @@ def filter_by_group(
         return df_tema
     id_col = "CODIGO_INFORMANTE" if "CODIGO_INFORMANTE" in informantes_f.columns else None
     allowed = set(
-        (informantes_f.index + 1).tolist()
-        if id_col is None
-        else informantes_f[id_col].tolist()
+        (informantes_f.index + 1).tolist() if id_col is None else informantes_f[id_col].tolist()
     )
     return df_tema[df_tema[informant_col].isin(allowed)]
 
@@ -70,9 +69,7 @@ def bigrams_cached(df_tema: pd.DataFrame, cache_key: str) -> pd.DataFrame:
 
 
 @st.cache_data(show_spinner=False)
-def node_stats_cached(
-    df_tema: pd.DataFrame, directed: bool, cache_key: str
-) -> pd.DataFrame:
+def node_stats_cached(df_tema: pd.DataFrame, directed: bool, cache_key: str) -> pd.DataFrame:
     """! Estadísticas por nodo del grafo (cacheado).
 
     Reutiliza `bigrams_cached` para evitar recomputar bigramas.

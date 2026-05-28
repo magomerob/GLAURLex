@@ -40,9 +40,7 @@ def render_informant_stats():
         "en la pestaña de Inferencia)."
     )
 
-    processed_dir = st.session_state.get(
-        "DatasetService::processed_dir", DEFAULT_PROCESSED_DIR
-    )
+    processed_dir = st.session_state.get("DatasetService::processed_dir", DEFAULT_PROCESSED_DIR)
     processed_dir = st.session_state.get("processed_dir", processed_dir)
 
     ds = _load_dataset(processed_dir, s.dataset_name)
@@ -72,9 +70,7 @@ def render_informant_stats():
     st.session_state.active_group = active_group_name
     group = st.session_state.groups[active_group_name]
 
-    informantes_f = (
-        apply_group(informantes_df, group) if informantes_df is not None else None
-    )
+    informantes_f = apply_group(informantes_df, group) if informantes_df is not None else None
 
     if informantes_df is None:
         st.warning("Este dataset no contiene tabla de informantes.")
@@ -148,12 +144,8 @@ def render_informant_stats():
 
     # Reordenar columnas: identificador + métricas + variables sociolinguísticas
     metric_cols = [c for c in INFORMANT_METRIC_COLS if c in metrics_df.columns]
-    id_cols = [
-        c for c in ("user_id", "CODIGO_INFORMANTE") if c in metrics_df.columns
-    ]
-    other_cols = [
-        c for c in metrics_df.columns if c not in metric_cols and c not in id_cols
-    ]
+    id_cols = [c for c in ("user_id", "CODIGO_INFORMANTE") if c in metrics_df.columns]
+    other_cols = [c for c in metrics_df.columns if c not in metric_cols and c not in id_cols]
     ordered_cols = id_cols + metric_cols + other_cols
     table = metrics_df[ordered_cols]
 
@@ -163,9 +155,7 @@ def render_informant_stats():
         width="stretch",
         hide_index=True,
         column_config={
-            "type_coverage": st.column_config.NumberColumn(
-                "type_coverage", format="%.4f"
-            ),
+            "type_coverage": st.column_config.NumberColumn("type_coverage", format="%.4f"),
             "ttr": st.column_config.NumberColumn("ttr", format="%.4f"),
             "mean_pos": st.column_config.NumberColumn("mean_pos", format="%.3f"),
             "entropy": st.column_config.NumberColumn("entropy", format="%.4f"),

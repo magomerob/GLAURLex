@@ -18,9 +18,9 @@ MetricScope = Literal["informant", "type", "node"]
 # Prerrequisitos de cómputo. Modelados como literales para facilitar
 # validación y documentación; ampliables sin romper consumidores existentes.
 MetricRequirement = Literal[
-    "tokens",          # responses/tokens dataframe (mínimo común)
-    "type_stats",      # necesita estadisticas_df() previa (p.ej. disponibilidad)
-    "graph",           # necesita un grafo construido (dirigido o no)
+    "tokens",  # responses/tokens dataframe (mínimo común)
+    "type_stats",  # necesita estadisticas_df() previa (p.ej. disponibilidad)
+    "graph",  # necesita un grafo construido (dirigido o no)
     "graph_directed",  # requiere específicamente un grafo dirigido
 ]
 
@@ -234,7 +234,7 @@ METRIC_CATALOG: dict[str, MetricSpec] = dict(
             "Fuerza (grado ponderado)",
             "Suma de los pesos de las aristas incidentes al nodo.",
             "node",
-            "nx.Graph.degree(weight=\"weight\").",
+            'nx.Graph.degree(weight="weight").',
             implementation="glaurlex.core.graph.node_stats",
             dependencies=("graph",),
         ),
@@ -263,8 +263,8 @@ METRIC_CATALOG: dict[str, MetricSpec] = dict(
             "PageRank",
             "Importancia del nodo según el algoritmo PageRank ponderado.",
             "node",
-            "nx.pagerank(graph, weight=\"weight\", alpha=0.85, tol=1e-6).",
-            parameters="alpha=0.85, tol=1e-6, weight=\"weight\"",
+            'nx.pagerank(graph, weight="weight", alpha=0.85, tol=1e-6).',
+            parameters='alpha=0.85, tol=1e-6, weight="weight"',
             implementation="glaurlex.core.graph.node_stats",
             dependencies=("graph",),
         ),
@@ -273,8 +273,8 @@ METRIC_CATALOG: dict[str, MetricSpec] = dict(
             "Eigenvector",
             "Centralidad eigenvector ponderada (autovector dominante de la matriz de adyacencia).",
             "node",
-            "nx.eigenvector_centrality(graph, weight=\"weight\", max_iter=1000).",
-            parameters="max_iter=1000, weight=\"weight\"",
+            'nx.eigenvector_centrality(graph, weight="weight", max_iter=1000).',
+            parameters='max_iter=1000, weight="weight"',
             implementation="glaurlex.core.graph.node_stats",
             dependencies=("graph",),
         ),
@@ -283,8 +283,8 @@ METRIC_CATALOG: dict[str, MetricSpec] = dict(
             "Clustering",
             "Coeficiente de agrupamiento ponderado del nodo.",
             "node",
-            "nx.clustering(graph, weight=\"weight\").",
-            parameters="weight=\"weight\"",
+            'nx.clustering(graph, weight="weight").',
+            parameters='weight="weight"',
             implementation="glaurlex.core.graph.node_stats",
             dependencies=("graph",),
         ),

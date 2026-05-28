@@ -919,9 +919,7 @@ def render_charts():
                     return
 
                 # Filtrar al Top-N (o usar todos los nodos)
-                nod = node_stats_cached(
-                    df_f, directed=directed, cache_key=cache_key
-                )
+                nod = node_stats_cached(df_f, directed=directed, cache_key=cache_key)
                 if top_n is None:
                     top_nodes = set(nod["node"].tolist())
                 else:

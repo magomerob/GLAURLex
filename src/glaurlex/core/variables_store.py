@@ -55,9 +55,7 @@ def load_variables(processed_dir: str, dataset_name: str) -> Dict[str, Dict]:
     return out
 
 
-def save_variables(
-    processed_dir: str, dataset_name: str, config: Dict[str, Dict]
-) -> None:
+def save_variables(processed_dir: str, dataset_name: str, config: Dict[str, Dict]) -> None:
     """! Guarda la configuración de variables.
 
     Solo persiste columnas que tengan `ordinal=True` y al menos un nivel
@@ -78,9 +76,7 @@ def save_variables(
         cleaned[col] = {"ordinal": True, "order": order}
 
     payload = {"dataset": dataset_name, "variables": cleaned}
-    path.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def get_order(config: Dict[str, Dict], col: str) -> List[str]:
