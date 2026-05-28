@@ -50,7 +50,7 @@ def main():
             "Estadísticas por type",
             "Estadísticas por informante",
             "Grafos",
-            "Gráficos",
+            "Visualización",
             "Inferencia",
         ]
     else:
@@ -61,7 +61,7 @@ def main():
             "Estadísticas por type (bloqueado)",
             "Estadísticas por informante (bloqueado)",
             "Grafos (bloqueado)",
-            "Gráficos (bloqueado)",
+            "Visualización (bloqueado)",
             "Inferencia (bloqueado)",
         ]
 
@@ -72,7 +72,7 @@ def main():
         "stats": "Estadísticas por type",
         "informant_stats": "Estadísticas por informante",
         "graphs": "Grafos",
-        "charts": "Gráficos",
+        "charts": "Visualización",
         "inference": "Inferencia",
     }
     page_prefix_to_token = {v: k for k, v in page_token_to_prefix.items()}
@@ -125,7 +125,7 @@ def main():
         render_visualize()
     elif page.startswith("Grafos"):
         render_graphs()
-    elif page.startswith("Gráficos"):
+    elif page.startswith("Visualización"):
         render_charts()
     elif page.startswith("Inferencia"):
         render_inference()

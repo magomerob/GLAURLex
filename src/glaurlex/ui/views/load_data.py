@@ -16,6 +16,24 @@ def get_dataset_service(processed_dir: str) -> DatasetService:
     return DatasetService(processed_dir)
 
 
+@st.cache_data(show_spinner=False)
+def _dataset_summary(processed_dir: str, name: str) -> Dict[str, int]:
+    ds = get_dataset_service(processed_dir).load_processed(name)
+    n_informantes = int(len(ds.informantes))
+    n_temas = int(len(ds.temas))
+    n_tokens = int(sum(len(df) for df in ds.temas.values()))
+    types_set: set = set()
+    for df in ds.temas.values():
+        types_set.update(df["type"].dropna().astype(str).unique().tolist())
+    n_types = int(len(types_set))
+    return {
+        "informantes": n_informantes,
+        "temas": n_temas,
+        "types": n_types,
+        "tokens": n_tokens,
+    }
+
+
 def _parse_salamanca_stimulus_map(raw_text: str) -> Dict[str, str]:
     mapping: Dict[str, str] = {}
     for i, line in enumerate(raw_text.splitlines(), start=1):
@@ -172,8 +190,18 @@ def render_load_data():
     st.subheader("Estado")
     if s.dataset_name:
         st.write(f"Dataset activo: **{s.dataset_name}**")
+
+        try:
+            summary = _dataset_summary(processed_dir, s.dataset_name)
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("Informantes", f"{summary['informantes']}")
+            m2.metric("Temas", f"{summary['temas']}")
+            m3.metric("Types únicos", f"{summary['types']}")
+            m4.metric("Tokens totales", f"{summary['tokens']}")
+        except Exception as e:
+            st.warning(f"No se pudieron calcular las estadísticas del dataset: {e}")
+
         temas = service.list_temas(s.dataset_name)
-        st.write(f"Temas detectados: **{len(temas)}**")
         with st.expander("Ver temas"):
             st.write(temas)
 
