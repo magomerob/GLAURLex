@@ -5,9 +5,13 @@ import streamlit as st
 
 from glaurlex.config import DEFAULT_PROCESSED_DIR
 from glaurlex.core.dataset_service import DatasetService
-from glaurlex.core.graph import bigrams_for_tema, bigrams_to_unordered
+from glaurlex.core.graph import bigrams_to_unordered
 from glaurlex.core.groups import ALL_GROUP, apply_group
-from glaurlex.core.stats import estadisticas_df
+from glaurlex.ui.metrics_cache import (
+    bigrams_cached,
+    infer_informant_col,
+    type_stats_cached,
+)
 from glaurlex.ui.state import (
     ensure_groups_loaded_for_dataset,
     ensure_state,
@@ -26,48 +30,13 @@ def load_dataset(processed_dir: str, name: str):
     return svc.load_processed(name)
 
 
-@st.cache_data(show_spinner=False)
-def compute_stats_cached(df_tema, cache_key: str):
-    # cache_key fuerza invalidación si cambias de tema/dataset/grupo
-    _ = cache_key
-    return estadisticas_df(df_tema)
-
-
-@st.cache_data(show_spinner=False)
-def compute_bigrams_cached(df_tema, cache_key: str):
-    _ = cache_key
-    return bigrams_for_tema(df_tema)
-
-
-def _infer_informant_col(df_tema) -> str | None:
-    """
-    Intenta inferir la columna que identifica al informante dentro del df del tema.
-    Ajusta esta lista según tu esquema real.
-    """
-    candidates = [
-        "CODIGO_INFORMANTE",
-        "codigoinformante",
-        "codigo_informante",
-        "informante",
-        "user",
-        "usuario",
-        "center",
-        "centers",
-        "user_id",
-    ]
-    for c in candidates:
-        if c in df_tema.columns:
-            return c
-    return None
-
-
 def render_visualize():
     s = ensure_state()
     if "groups" not in st.session_state:
         ensure_groups_loaded_for_dataset(s.dataset_name)
     else:
         ensure_groups_loaded_for_dataset(s.dataset_name)
-    st.header("Estadísticas")
+    st.header("Estadísticas por type")
 
     processed_dir = st.session_state.get("DatasetService::processed_dir", DEFAULT_PROCESSED_DIR)
     processed_dir = st.session_state.get("processed_dir", processed_dir)
@@ -141,7 +110,7 @@ def render_visualize():
 
     # Filtrar
     df_tema_f = df_tema
-    informant_col = _infer_informant_col(df_tema)
+    informant_col = infer_informant_col(df_tema)
 
     if informantes_f is not None and informant_col is not None:
         informant_id_col = (
@@ -211,7 +180,7 @@ def render_visualize():
     # cache_key para que el caché distinga dataset + tema + grupo + tamaño filtrado
     cache_key = f"{s.dataset_name}::{tema}::{active_group_name}::{len(df_tema_f)}"
     with st.spinner("Calculando estadísticas del tema..."):
-        stats = compute_stats_cached(df_tema_f, cache_key=cache_key)
+        stats = type_stats_cached(df_tema_f, cache_key=cache_key)
 
     # Filtros
     stats_view = stats
@@ -262,7 +231,7 @@ def render_visualize():
     st.subheader("Tabla de bigramas (ordenada por aparición)")
     unordered = st.toggle("Ignorar orden (a,b == b,a)", key="visualize::unordered")
     with st.spinner("Calculando bigramas del tema..."):
-        bigrams_ordered = compute_bigrams_cached(df_tema_f, cache_key=cache_key)
+        bigrams_ordered = bigrams_cached(df_tema_f, cache_key=cache_key)
 
     if unordered:
         bigrams_view = bigrams_to_unordered(bigrams_ordered)

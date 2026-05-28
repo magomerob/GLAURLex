@@ -43,6 +43,7 @@ def informant_metrics(
     Métricas devueltas:
     - n_tokens: número total de respuestas (tokens) producidas.
     - n_types: número de types distintos producidos.
+    - type_coverage: proporción de types del tema cubiertos por el informante.
     - ttr: Type-Token Ratio (n_types / n_tokens).
     - mean_pos: posición media (1-indexed) de las respuestas.
     - max_pos: última posición alcanzada (longitud de la lista).
@@ -69,6 +70,8 @@ def informant_metrics(
         else {}
     )
 
+    total_types = int(df_tema["type"].nunique())
+
     grouped = df_tema.groupby("user_id")
     rows = []
     for uid, sub in grouped:
@@ -84,6 +87,7 @@ def informant_metrics(
                 "user_id": uid,
                 "n_tokens": n_tok,
                 "n_types": n_typ,
+                "type_coverage": (n_typ / total_types) if total_types > 0 else 0.0,
                 "ttr": (n_typ / n_tok) if n_tok > 0 else 0.0,
                 "mean_pos": float(pos_arr.mean()) + 1 if n_tok > 0 else np.nan,
                 "max_pos": int(pos_arr.max()) + 1 if n_tok > 0 else 0,
@@ -234,10 +238,78 @@ class InferenceResult:
     non_parametric: Dict[str, Any] = field(default_factory=dict)
     effect_size: Dict[str, Any] = field(default_factory=dict)
     posthoc: Optional[pd.DataFrame] = None
+    # Test de tendencia (solo para variables ordinales con >=2 niveles).
+    # Contiene Spearman ρ y Kendall τ-b sobre rank(category) vs metric.
+    trend: Optional[Dict[str, Any]] = None
     notes: List[str] = field(default_factory=list)
 
 
-def _group_descriptives(df: pd.DataFrame, metric: str, by: str) -> pd.DataFrame:
+def _ordered_levels(work_levels: List[Any], order: Optional[List[str]]) -> List[Any]:
+    """! Devuelve los niveles en el orden declarado (si se da uno).
+
+    Compara como strings para tolerar tipos mixtos (números, categorías).
+    Niveles presentes en los datos pero no en `order` se añaden al final
+    (ordenados alfabéticamente) para no perder información.
+    """
+    if not order:
+        return sorted(work_levels, key=str)
+
+    str_to_orig = {str(lv): lv for lv in work_levels}
+    ordered: List[Any] = []
+    seen: set = set()
+    for o in order:
+        key = str(o)
+        if key in str_to_orig:
+            ordered.append(str_to_orig[key])
+            seen.add(key)
+
+    extras = sorted(
+        (lv for k, lv in str_to_orig.items() if k not in seen), key=str
+    )
+    return ordered + extras
+
+
+def _trend_tests(
+    work: pd.DataFrame, metric: str, by: str, ordered_levels: List[Any]
+) -> Dict[str, Any]:
+    """! Calcula tests de tendencia para una variable ordinal.
+
+    Codifica la variable ordinal con su rank-index en `ordered_levels` y
+    computa Spearman ρ y Kendall τ-b contra `metric`.
+    """
+    rank_idx = {lv: i for i, lv in enumerate(ordered_levels)}
+    sub = work[work[by].isin(ordered_levels)].copy()
+    sub["__rank"] = sub[by].map(rank_idx)
+    sub = sub.dropna(subset=["__rank", metric])
+    n = int(sub.shape[0])
+    if n < 3 or sub["__rank"].nunique() < 2:
+        return {"N": n, "error": "Datos insuficientes para tendencia."}
+
+    try:
+        rho, p_rho = stats.spearmanr(sub["__rank"], sub[metric])
+    except Exception:  # pragma: no cover
+        rho, p_rho = float("nan"), float("nan")
+    try:
+        tau, p_tau = stats.kendalltau(sub["__rank"], sub[metric], variant="b")
+    except Exception:
+        tau, p_tau = float("nan"), float("nan")
+
+    return {
+        "N": n,
+        "niveles": [str(x) for x in ordered_levels],
+        "Spearman ρ": float(rho),
+        "Spearman p_value": float(p_rho),
+        "Kendall τ-b": float(tau),
+        "Kendall p_value": float(p_tau),
+    }
+
+
+def _group_descriptives(
+    df: pd.DataFrame,
+    metric: str,
+    by: str,
+    order: Optional[List[Any]] = None,
+) -> pd.DataFrame:
     rows = []
     for level, sub in df.groupby(by, dropna=True):
         s = pd.to_numeric(sub[metric], errors="coerce").dropna()
@@ -257,7 +329,14 @@ def _group_descriptives(df: pd.DataFrame, metric: str, by: str) -> pd.DataFrame:
             }
         )
     out = pd.DataFrame(rows)
-    if not out.empty:
+    if out.empty:
+        return out
+
+    if order:
+        rank_idx = {str(lv): i for i, lv in enumerate(order)}
+        out["__rank"] = out[by].map(lambda v: rank_idx.get(str(v), len(rank_idx)))
+        out = out.sort_values(["__rank", by]).drop(columns="__rank").reset_index(drop=True)
+    else:
         out = out.sort_values(by).reset_index(drop=True)
     return out
 
@@ -269,6 +348,7 @@ def compare_groups(
     *,
     posthoc: bool = True,
     posthoc_alpha: float = 0.05,
+    order: Optional[List[str]] = None,
 ) -> InferenceResult:
     """! Compara una métrica numérica a través de los niveles de una variable.
 
@@ -280,18 +360,27 @@ def compare_groups(
     @param df DataFrame con columnas `metric` y `by`.
     @param metric Nombre de la columna numérica a comparar.
     @param by Nombre de la columna categórica.
+    @param order Orden declarado de niveles (variable ordinal). Si se da, los
+        descriptivos y el post-hoc respetan ese orden y se añade un test de
+        tendencia (Spearman ρ + Kendall τ-b sobre rank(category) vs metric).
     @return InferenceResult con descriptivos, tests y tamaños de efecto.
     """
     work = df[[metric, by]].copy()
     work[metric] = pd.to_numeric(work[metric], errors="coerce")
     work = work.dropna(subset=[metric, by])
 
-    levels = sorted(work[by].dropna().unique().tolist(), key=str)
+    raw_levels = work[by].dropna().unique().tolist()
+    levels = _ordered_levels(raw_levels, order)
     groups = [work.loc[work[by] == lv, metric].to_numpy() for lv in levels]
     groups = [g for g in groups if len(g) >= 2]
 
-    desc = _group_descriptives(work, metric, by)
+    desc = _group_descriptives(work, metric, by, order=levels if order else None)
     notes: List[str] = []
+    trend_block: Optional[Dict[str, Any]] = None
+    if order:
+        levels_with_data = [lv for lv in levels if (work[by] == lv).sum() >= 1]
+        if len(levels_with_data) >= 2:
+            trend_block = _trend_tests(work, metric, by, levels_with_data)
 
     if len(groups) < 2:
         return InferenceResult(
@@ -339,6 +428,7 @@ def compare_groups(
                 "Cohen's d": _cohens_d(a, b),
                 "rank-biserial r": _rank_biserial(float(u_stat), len(a), len(b)),
             },
+            trend=trend_block,
             notes=notes,
         )
 
@@ -410,6 +500,7 @@ def compare_groups(
             "ε² (Kruskal-Wallis)": eps2,
         },
         posthoc=posthoc_df,
+        trend=trend_block,
         notes=notes,
     )
 

@@ -9,7 +9,9 @@ from glaurlex.ui.views.charts import render_charts
 from glaurlex.ui.views.graphs import render_graphs
 from glaurlex.ui.views.grouping import render_grouping
 from glaurlex.ui.views.inference import render_inference
+from glaurlex.ui.views.informant_stats import render_informant_stats
 from glaurlex.ui.views.load_data import render_load_data
+from glaurlex.ui.views.variables import render_variables
 from glaurlex.ui.views.visualize import render_visualize
 
 
@@ -43,8 +45,10 @@ def main():
     if has_dataset_loaded():
         options = [
             "Carga de datos",
+            "Variables",
             "Grupos",
-            "Estadísticas",
+            "Estadísticas por type",
+            "Estadísticas por informante",
             "Grafos",
             "Gráficos",
             "Inferencia",
@@ -52,8 +56,10 @@ def main():
     else:
         options = [
             "Carga de datos",
+            "Variables (bloqueado)",
             "Grupos (bloqueado)",
-            "Estadísticas (bloqueado)",
+            "Estadísticas por type (bloqueado)",
+            "Estadísticas por informante (bloqueado)",
             "Grafos (bloqueado)",
             "Gráficos (bloqueado)",
             "Inferencia (bloqueado)",
@@ -61,8 +67,10 @@ def main():
 
     page_token_to_prefix = {
         "load": "Carga de datos",
+        "variables": "Variables",
         "groups": "Grupos",
-        "stats": "Estadísticas",
+        "stats": "Estadísticas por type",
+        "informant_stats": "Estadísticas por informante",
         "graphs": "Grafos",
         "charts": "Gráficos",
         "inference": "Inferencia",
@@ -109,7 +117,11 @@ def main():
 
     if page.startswith("Grupos"):
         render_grouping()
-    elif page.startswith("Estadísticas"):
+    elif page.startswith("Variables"):
+        render_variables()
+    elif page.startswith("Estadísticas por informante"):
+        render_informant_stats()
+    elif page.startswith("Estadísticas por type"):
         render_visualize()
     elif page.startswith("Grafos"):
         render_graphs()

@@ -11,41 +11,36 @@ import streamlit as st
 from glaurlex.config import DEFAULT_PROCESSED_DIR
 from glaurlex.core.dataset_service import DatasetService
 from glaurlex.core.graph import (
-    bigrams_for_tema,
     bigrams_to_dirgraph,
     bigrams_to_undgraph,
     community_leiden,
-    node_stats,
 )
 from glaurlex.core.groups import ALL_GROUP, apply_group
-from glaurlex.core.stats import estadisticas_df
+from glaurlex.core.metrics_catalog import labels_by_scope
+from glaurlex.ui.metrics_cache import (
+    bigrams_cached,
+    filter_by_group,
+    infer_informant_col,
+    node_stats_cached,
+    type_stats_cached,
+)
 from glaurlex.ui.state import (
     ensure_groups_loaded_for_dataset,
     ensure_state,
 )
 
 # ---------------------------------------------------------------------------
-# Columnas disponibles para graficar
+# Columnas disponibles para graficar (derivadas del catálogo central)
 # ---------------------------------------------------------------------------
 
+# Métricas por type excluidas de los gráficos de scatter (no aportan eje útil).
+_CHART_TYPE_EXCLUDED: set[str] = {"tokens"}
+
 TYPE_STATS_COLS: dict[str, str] = {
-    "disponibilidad": "Disponibilidad",
-    "aparición": "Aparición",
-    "freq_rel": "Frecuencia relativa",
-    "avg_pos": "Posición promedio",
-    "freq_acum": "Frecuencia acumulada",
+    k: v for k, v in labels_by_scope("type").items() if k not in _CHART_TYPE_EXCLUDED
 }
 
-NODE_STATS_COLS: dict[str, str] = {
-    "degree": "Grado",
-    "strength": "Fuerza (grado ponderado)",
-    "betweenness": "Intermediación",
-    "closeness": "Cercanía",
-    "pagerank": "PageRank",
-    "eigenvector": "Eigenvector",
-    "clustering": "Clustering",
-    "degree_centrality": "Centralidad de grado",
-}
+NODE_STATS_COLS: dict[str, str] = labels_by_scope("node")
 
 ALL_METRIC_COLS: dict[str, str] = {**TYPE_STATS_COLS, **NODE_STATS_COLS}
 
@@ -116,24 +111,12 @@ def _load_dataset(processed_dir: str, name: str):
 
 
 @st.cache_data(show_spinner=False)
-def _type_stats_cached(df_tema, cache_key: str) -> pd.DataFrame:
-    _ = cache_key
-    return estadisticas_df(df_tema)
-
-
-@st.cache_data(show_spinner=False)
-def _node_stats_cached(df_tema, directed: bool, cache_key: str) -> pd.DataFrame:
-    _ = cache_key
-    bigrams = bigrams_for_tema(df_tema)
-    G = bigrams_to_dirgraph(bigrams) if directed else bigrams_to_undgraph(bigrams)
-    return node_stats(G)
-
-
-@st.cache_data(show_spinner=False)
 def _community_cached(df_tema, directed: bool, cache_key: str) -> pd.DataFrame:
-    """Detección de comunidades (Leiden) sobre el grafo no dirigido."""
-    _ = cache_key
-    bigrams = bigrams_for_tema(df_tema)
+    """Detección de comunidades (Leiden) sobre el grafo no dirigido.
+
+    Reutiliza `bigrams_cached` para no recomputar bigramas.
+    """
+    bigrams = bigrams_cached(df_tema, cache_key)
     G = bigrams_to_dirgraph(bigrams) if directed else bigrams_to_undgraph(bigrams)
     communities = community_leiden(G, seed=42)
     rows = [
@@ -147,33 +130,6 @@ def _community_cached(df_tema, directed: bool, cache_key: str) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-
-def _infer_informant_col(df_tema: pd.DataFrame) -> str | None:
-    candidates = [
-        "CODIGO_INFORMANTE",
-        "codigoinformante",
-        "codigo_informante",
-        "informante",
-        "user",
-        "usuario",
-        "center",
-        "centers",
-        "user_id",
-    ]
-    return next((c for c in candidates if c in df_tema.columns), None)
-
-
-def _filter_by_group(
-    df_tema: pd.DataFrame, informantes_f, informant_col: str | None
-) -> pd.DataFrame:
-    if informantes_f is None or informant_col is None:
-        return df_tema
-    id_col = "CODIGO_INFORMANTE" if "CODIGO_INFORMANTE" in informantes_f.columns else None
-    allowed = set(
-        (informantes_f.index + 1).tolist() if id_col is None else informantes_f[id_col].tolist()
-    )
-    return df_tema[df_tema[informant_col].isin(allowed)]
 
 
 def _fig_to_bytes(fig: plt.Figure, fmt: str, dpi: int) -> bytes:
@@ -219,18 +175,18 @@ def _load_merged(
     informantes_df = getattr(ds, "informantes", None)
     informantes_f = apply_group(informantes_df, group) if informantes_df is not None else None
     df_tema = ds.temas[tema_name]
-    informant_col = _infer_informant_col(df_tema)
-    df_f = _filter_by_group(df_tema, informantes_f, informant_col)
+    informant_col = infer_informant_col(df_tema)
+    df_f = filter_by_group(df_tema, informantes_f, informant_col)
     cache_key = f"{dataset_name}::{tema_name}::{group_name}::{len(df_f)}"
 
     parts: list[pd.DataFrame] = []
 
     if source in ("Types", "Combinada"):
-        tok = _type_stats_cached(df_f, cache_key=cache_key + "::tok")
+        tok = type_stats_cached(df_f, cache_key=cache_key)
         parts.append(tok.rename(columns={"type": "_id"}).set_index("_id"))
 
     if source in ("Nodos", "Combinada"):
-        nod = _node_stats_cached(df_f, directed=directed, cache_key=cache_key + f"::nod{directed}")
+        nod = node_stats_cached(df_f, directed=directed, cache_key=cache_key)
         node_col = "node" if "node" in nod.columns else nod.columns[0]
         parts.append(nod.rename(columns={node_col: "_id"}).set_index("_id"))
 
@@ -286,15 +242,15 @@ def _attach_color_col(
     informantes_df = getattr(ds, "informantes", None)
     informantes_f = apply_group(informantes_df, group) if informantes_df is not None else None
     df_tema = ds.temas[tema]
-    informant_col = _infer_informant_col(df_tema)
-    df_f = _filter_by_group(df_tema, informantes_f, informant_col)
+    informant_col = infer_informant_col(df_tema)
+    df_f = filter_by_group(df_tema, informantes_f, informant_col)
     cache_key = f"{dataset_name}::{tema}::{group_name}::{len(df_f)}"
 
     if color_key == "community_id":
-        extra = _community_cached(df_f, directed, cache_key=cache_key + "::comm")
+        extra = _community_cached(df_f, directed, cache_key=cache_key)
     else:
         # weak_component_id / strong_component_id vienen de node_stats
-        nod = _node_stats_cached(df_f, directed, cache_key=cache_key + f"::nod{directed}")
+        nod = node_stats_cached(df_f, directed, cache_key=cache_key)
         node_col = "node" if "node" in nod.columns else nod.columns[0]
         cols_to_keep = [node_col, color_key] if color_key in nod.columns else [node_col]
         extra = nod[cols_to_keep].rename(columns={node_col: "type"})
@@ -950,11 +906,11 @@ def render_charts():
                     apply_group(informantes_df, group) if informantes_df is not None else None
                 )
                 df_tema_raw = ds.temas[tema]
-                informant_col = _infer_informant_col(df_tema_raw)
-                df_f = _filter_by_group(df_tema_raw, informantes_f, informant_col)
+                informant_col = infer_informant_col(df_tema_raw)
+                df_f = filter_by_group(df_tema_raw, informantes_f, informant_col)
                 cache_key = f"{s.dataset_name}::{tema}::{graph_group}::{len(df_f)}"
 
-                bigrams = bigrams_for_tema(df_f)
+                bigrams = bigrams_cached(df_f, cache_key=cache_key)
                 G = bigrams_to_dirgraph(bigrams) if directed else bigrams_to_undgraph(bigrams)
 
                 if G.number_of_nodes() == 0:
@@ -963,8 +919,8 @@ def render_charts():
                     return
 
                 # Filtrar al Top-N (o usar todos los nodos)
-                nod = _node_stats_cached(
-                    df_f, directed=directed, cache_key=cache_key + f"::nod{directed}"
+                nod = node_stats_cached(
+                    df_f, directed=directed, cache_key=cache_key
                 )
                 if top_n is None:
                     top_nodes = set(nod["node"].tolist())
