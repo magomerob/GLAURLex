@@ -7,7 +7,6 @@ import streamlit as st
 from glaurlex.config import DEFAULT_PROCESSED_DIR
 from glaurlex.core.dataset_service import DatasetService
 from glaurlex.core.graph import (
-    bigrams_for_tema,
     bigrams_to_dirgraph,
     bigrams_to_undgraph,
     community_leiden,
@@ -19,6 +18,7 @@ from glaurlex.core.graph import (
 )
 from glaurlex.core.graph_service import GraphService
 from glaurlex.core.groups import ALL_GROUP, apply_group
+from glaurlex.ui.metrics_cache import bigrams_cached, infer_informant_col
 from glaurlex.ui.state import (
     ensure_groups_loaded_for_dataset,
     ensure_state,
@@ -42,12 +42,6 @@ def load_dataset(processed_dir: str, name: str):
     return svc.load_processed(name)
 
 
-@st.cache_data(show_spinner=False)
-def compute_bigrams_cached(df_tema, cache_key: str):
-    _ = cache_key
-    return bigrams_for_tema(df_tema)
-
-
 def compute_communities(graph, cache_key: str) -> dict:
     state_key = f"comm_cache::{cache_key}"
     if state_key not in st.session_state:
@@ -66,24 +60,6 @@ def _render_small_world_metric(column, label: str, value, error: str | None) -> 
     column.metric(label, "N/A")
     if error:
         column.error(error)
-
-
-def _infer_informant_col(df_tema) -> str | None:
-    candidates = [
-        "CODIGO_INFORMANTE",
-        "codigoinformante",
-        "codigo_informante",
-        "informante",
-        "user",
-        "usuario",
-        "center",
-        "centers",
-        "user_id",
-    ]
-    for c in candidates:
-        if c in df_tema.columns:
-            return c
-    return None
 
 
 def _slug_graph_name(*parts: str) -> str:
@@ -155,7 +131,7 @@ def render_graphs():
 
         df_tema = ds.temas[tema]
         df_tema_f = df_tema
-        informant_col = _infer_informant_col(df_tema)
+        informant_col = infer_informant_col(df_tema)
 
         if informantes_f is not None and informant_col is not None:
             informant_id_col = (
@@ -200,9 +176,9 @@ def render_graphs():
         with st.spinner("Cargando grafo GML..."):
             graph = graph_service.load_graph(s.dataset_name, graph_name)
     else:
-        cache_key = f"{s.dataset_name}::{tema}::{active_group_name}::{len(df_tema_f)}::{directed}"
+        cache_key = f"{s.dataset_name}::{tema}::{active_group_name}::{len(df_tema_f)}"
         with st.spinner("Calculando bigramas..."):
-            bigrams_df = compute_bigrams_cached(df_tema_f, cache_key=cache_key)
+            bigrams_df = bigrams_cached(df_tema_f, cache_key=cache_key)
         graph = bigrams_to_dirgraph(bigrams_df) if directed else bigrams_to_undgraph(bigrams_df)
         try:
             graph_service.save_graph(s.dataset_name, graph_name, graph, overwrite=False)
@@ -235,7 +211,8 @@ def render_graphs():
 
     if recalc_clicked:
         with st.spinner("Recalculando grafo..."):
-            bigrams_df = bigrams_for_tema(df_tema_f)
+            recalc_key = f"{s.dataset_name}::{tema}::{active_group_name}::{len(df_tema_f)}"
+            bigrams_df = bigrams_cached(df_tema_f, cache_key=recalc_key)
             graph = bigrams_to_dirgraph(bigrams_df) if directed else bigrams_to_undgraph(bigrams_df)
             try:
                 graph_service.save_graph(s.dataset_name, graph_name, graph, overwrite=True)

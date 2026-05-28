@@ -8,6 +8,7 @@ import streamlit as st
 from glaurlex.config import DEFAULT_PROCESSED_DIR
 from glaurlex.core.groups import ALL_GROUP
 from glaurlex.core.groups_store import load_groups
+from glaurlex.core.variables_store import load_variables
 
 T = TypeVar("T")
 
@@ -116,3 +117,20 @@ def ensure_groups_loaded_for_dataset(dataset_name: str) -> None:
 
     if "TODOS" not in st.session_state.groups:
         st.session_state.groups["TODOS"] = ALL_GROUP
+
+
+def ensure_variables_loaded_for_dataset(dataset_name: str) -> None:
+    """! Carga la configuración de variables (ordinales, etc.) del dataset activo.
+
+    Mirror del patrón de `ensure_groups_loaded_for_dataset`. Almacena el dict
+    en `st.session_state["variables"]`.
+    """
+    processed_dir = st.session_state.get("DatasetService::processed_dir", DEFAULT_PROCESSED_DIR)
+    processed_dir = st.session_state.get("processed_dir", processed_dir)
+
+    cache_key = f"variables::loaded_for::{processed_dir}::{dataset_name}"
+    if st.session_state.get("variables::loaded_key") == cache_key:
+        return
+
+    st.session_state["variables"] = load_variables(processed_dir, dataset_name)
+    st.session_state["variables::loaded_key"] = cache_key
