@@ -37,15 +37,15 @@ bajo `<HOST_DATA_DIR>/<username>/processed`.
    chmod 600 deploy/authelia/secrets/*
    ```
 
-4. **Crea usuarios en Authelia.** Genera el hash argon2id y pégalo en
+4. **Crea usuarios en Authelia.** Usa el script, que pregunta por username,
+   email y password, genera el hash argon2id y añade el bloque del usuario a
    `deploy/authelia/users_database.yml`:
    ```bash
-   docker run --rm authelia/authelia:4.39.20 \
-     authelia crypto hash generate argon2 -- 'TU_PASSWORD'
+   ./scripts/add-authelia-user.sh
    ```
    La *clave* del usuario en ese YAML (`alice`, `bob`, ...) se usará como
-   nombre del sandbox de datos en `<HOST_DATA_DIR>/<clave>/processed`.
-   Restringe la clave a `[a-z0-9._-]`.
+   nombre del sandbox de datos en `<HOST_DATA_DIR>/<clave>/processed`, por eso
+   el script la restringe a `[a-z0-9._-]`.
 
 5. **Prepara el directorio de datos en el host** con el UID/GID correctos:
    ```bash
@@ -79,7 +79,7 @@ sólo verás los datasets de tu sandbox.
 
 ## Mantenimiento
 
-- **Añadir usuario**: edita `deploy/authelia/users_database.yml` y reinicia
+- **Añadir usuario**: ejecuta `./scripts/add-authelia-user.sh` y reinicia con
   `docker compose restart authelia`. El sandbox `<HOST_DATA_DIR>/<user>/processed`
   se crea automáticamente al primer login.
 - **Renovación TLS**: la maneja Traefik automáticamente.

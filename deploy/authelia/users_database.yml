@@ -3,7 +3,7 @@
 #
 # Para añadir/editar usuarios:
 #   1. Genera un hash argon2id:
-#        docker run --rm authelia/authelia:4.39 authelia crypto hash generate argon2 -- 'TU_PASSWORD'
+#        docker run --rm authelia/authelia:4.39 authelia crypto hash generate argon2 --password 'TU_PASSWORD'
 #   2. Copia el string `$argon2id$...` a la clave `password` del usuario.
 #
 # El campo `displayname` se expone en la cabecera Remote-Name.

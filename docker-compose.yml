@@ -42,13 +42,17 @@ services:
     expose:
       - "9091"
     environment:
+      - X_AUTHELIA_CONFIG_FILTERS=template
+      - AUTH_HOST=${AUTH_HOST}
+      - APP_HOST=${APP_HOST}
+      - COOKIE_DOMAIN=${COOKIE_DOMAIN}
       - TZ=${TZ:-UTC}
       - AUTHELIA_JWT_SECRET_FILE=/secrets/jwt_secret
       - AUTHELIA_SESSION_SECRET_FILE=/secrets/session_secret
       - AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE=/secrets/storage_encryption_key
     volumes:
-      - ./deploy/authelia:/config:ro
-      - ./deploy/authelia/secrets:/secrets:ro
+      - ./deploy/authelia:/config
+      - ./deploy/authelia/secrets:/secrets
       - authelia_data:/data
     networks:
       - proxy

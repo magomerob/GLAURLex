@@ -33,10 +33,10 @@ access_control:
   default_policy: deny
   rules:
     # Acceso al portal de Authelia (siempre abierto)
-    - domain: ${AUTH_HOST}
+    - domain: '{{ env "AUTH_HOST" }}'
       policy: bypass
     # La app exige sesión válida (un solo factor)
-    - domain: ${APP_HOST}
+    - domain: '{{ env "APP_HOST" }}'
       policy: one_factor
 
 session:
@@ -46,9 +46,9 @@ session:
   expiration: 12h
   remember_me: 1M
   cookies:
-    - domain: ${COOKIE_DOMAIN}
-      authelia_url: https://${AUTH_HOST}/
-      default_redirection_url: https://${APP_HOST}/
+    - domain: '{{ env "COOKIE_DOMAIN" }}'
+      authelia_url: 'https://{{ env "AUTH_HOST" }}/'
+      default_redirection_url: 'https://{{ env "APP_HOST" }}/'
 
 regulation:
   max_retries: 5
