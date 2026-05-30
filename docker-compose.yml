@@ -35,6 +35,13 @@ services:
       - traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)
       - traefik.http.routers.http-catchall.entrypoints=web
       - traefik.http.routers.http-catchall.middlewares=https-redirect@file
+      # Dashboard
+      - traefik.http.routers.dashboard.rule=Host(`traefik.glaurlex.mgrobres.es`)
+      - traefik.http.routers.dashboard.entrypoints=websecure
+      - traefik.http.routers.dashboard.tls=true
+      - traefik.http.routers.dashboard.tls.certresolver=letsencrypt
+      - traefik.http.routers.dashboard.service=api@internal
+      - traefik.http.routers.dashboard.middlewares=authelia@file
 
   authelia:
     image: authelia/authelia:4.39.20

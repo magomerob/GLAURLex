@@ -11,7 +11,7 @@ http:
     # st.context.headers["Remote-User"]).
     authelia:
       forwardAuth:
-        address: http://authelia:9091/api/verify?rd=https%3A%2F%2F{{ env "AUTH_HOST" }}%2F
+        address: http://authelia:9091/api/authz/forward-auth
         trustForwardHeader: true
         authResponseHeaders:
           - Remote-User
@@ -23,7 +23,7 @@ http:
     # (útil si añades APIs en el futuro).
     authelia-basic:
       forwardAuth:
-        address: http://authelia:9091/api/verify
+        address: http://authelia:9091/api/authz/auth-request
         trustForwardHeader: true
         authResponseHeaders:
           - Remote-User
