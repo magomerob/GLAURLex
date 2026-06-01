@@ -261,6 +261,14 @@ def render_visualize():
         },
     )
 
+    # Descarga CSV bigramas
+    st.download_button(
+        "Descargar CSV bigramas (tras filtros)",
+        data=bigrams_view.to_csv(index=False).encode("utf-8"),
+        file_name=f"{s.dataset_name}_{tema}_{active_group_name}_bigramas.csv",
+        mime="text/csv",
+    )
+
     """
     # Gráficos
     st.subheader("Gráficos")

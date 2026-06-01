@@ -208,10 +208,11 @@ def render_load_data():
         with st.expander("Ver temas"):
             st.write(temas)
 
-        if st.button("Descargar dataset (desactivar)"):
-            s.dataset_name = None
-            set_query_param("dataset", None)
-            st.info("Dataset desactivado. Visualización y Grafos quedan bloqueados.")
-            st.rerun()
+        # No es necesario
+        # if st.button("Descargar dataset (desactivar)"):
+        #    s.dataset_name = None
+        #    set_query_param("dataset", None)
+        #    st.info("Dataset desactivado. Visualización y Grafos quedan bloqueados.")
+        #    st.rerun()
     else:
         st.write("No hay dataset activo.")
