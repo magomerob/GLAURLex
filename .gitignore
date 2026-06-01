@@ -214,3 +214,8 @@ deploy/authelia/secrets/*
 !deploy/authelia/secrets/.gitignore
 
 CLAUDE.md
+
+# Telemetría (solo en Oracle de momento)
+deploy/alloy/
+deploy/loki
+deploy/prometheus
