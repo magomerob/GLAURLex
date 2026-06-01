@@ -12,6 +12,49 @@ import pandas as pd
 
 _LINE_RE = re.compile(r"^\s*(\d+)\s+(\d+)\s+(\d+)\s*(.*?)\s*$")
 
+# Codificaciones probadas en orden antes de recurrir a la detección automática.
+# latin-1 nunca falla al decodificar, por lo que sirve de último recurso.
+_FALLBACK_ENCODINGS = ("utf-8-sig", "cp1252", "latin-1")
+
+
+def _read_text_any_encoding(path: Path) -> str:
+    """! Lee un archivo de texto intentando varias codificaciones.
+
+    Prueba UTF-8 (con/sin BOM); si falla, intenta detectar la codificación con
+    charset-normalizer y finalmente recurre a codificaciones comunes en textos
+    en español (cp1252, latin-1). latin-1 decodifica cualquier byte, por lo que
+    siempre produce un resultado.
+
+    @param path Ruta al archivo de texto.
+    @return Contenido del archivo decodificado.
+    """
+    raw = path.read_bytes()
+
+    # 1. UTF-8 (caso más común y sin pérdida si aplica).
+    try:
+        return raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        pass
+
+    # 2. Detección automática.
+    try:
+        from charset_normalizer import from_bytes
+
+        match = from_bytes(raw).best()
+        if match is not None:
+            return str(match)
+    except Exception:
+        pass
+
+    # 3. Codificaciones de respaldo; latin-1 nunca lanza excepción.
+    for enc in _FALLBACK_ENCODINGS:
+        try:
+            return raw.decode(enc)
+        except UnicodeDecodeError:
+            continue
+
+    return raw.decode("latin-1", errors="replace")
+
 
 def _sanitize_filename(name: str) -> str:
     name = str(name).strip()
@@ -61,7 +104,7 @@ def pdprocesssalamanca(path, respath, stimulus_map: Optional[Dict[str, str]] = N
     if not path.exists():
         raise FileNotFoundError(f"No existe el TXT: {path}")
 
-    lines = path.read_text(encoding="utf-8").splitlines()
+    lines = _read_text_any_encoding(path).splitlines()
     if not lines:
         raise ValueError("El archivo Salamanca está vacío.")
 
