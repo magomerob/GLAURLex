@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import streamlit as st
 
+from glaurlex.config import LOGOUT_URL
 from glaurlex.ui.state import (
     current_username,
     ensure_state,
@@ -47,7 +48,12 @@ def main():
     # Sidebar navigation (una sola vez -> evita duplicados)
     if is_multi_tenant():
         user = current_username() or "?"
-        st.sidebar.success(f"Sesión: **{user}**")
+        if LOGOUT_URL:
+            info_col, logout_col = st.sidebar.columns([3, 1], vertical_alignment="center")
+            info_col.success(f"Sesión: **{user}**")
+            logout_col.link_button("Salir", LOGOUT_URL, help="Cerrar sesión")
+        else:
+            st.sidebar.success(f"Sesión: **{user}**")
     st.sidebar.header("Navegación")
 
     # Si no hay dataset, bloqueamos visualización y grafos en la UI

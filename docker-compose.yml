@@ -87,6 +87,7 @@ services:
       - GLAURLEX_DATA_DIR=/data
       - GLAURLEX_REMOTE_USER_HEADER=Remote-User
       - GLAURLEX_REQUIRE_AUTH=1
+      - GLAURLEX_LOGOUT_URL=https://${AUTH_HOST}/logout
       - APP_ENV=prod
     volumes:
       # Raíz por-usuario en el host. Cada subcarpeta es <username>/processed.

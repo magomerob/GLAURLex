@@ -10,6 +10,9 @@ Variables soportadas:
       proxy (Authelia/Traefik) inyecta con el usuario autenticado.
     - `GLAURLEX_REQUIRE_AUTH`: si es `1`/`true`, la app exige que la
       cabecera de usuario esté presente y rechaza el acceso anónimo.
+    - `GLAURLEX_LOGOUT_URL`: URL a la que redirige el botón de cierre de
+      sesión (p. ej. el endpoint `/logout` de Authelia). Si está vacía no
+      se muestra el botón.
     - `APP_ENV`: etiqueta de entorno (`dev` por defecto).
 """
 
@@ -34,6 +37,7 @@ DEFAULT_PROCESSED_DIR = DATA_ROOT
 
 REMOTE_USER_HEADER = os.getenv("GLAURLEX_REMOTE_USER_HEADER", "Remote-User")
 REQUIRE_AUTH = os.getenv("GLAURLEX_REQUIRE_AUTH", "").lower() in {"1", "true", "yes"}
+LOGOUT_URL = os.getenv("GLAURLEX_LOGOUT_URL", "").strip()
 
 
 def user_processed_dir(username: str) -> Path:
