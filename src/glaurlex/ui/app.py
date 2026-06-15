@@ -48,12 +48,7 @@ def main():
     # Sidebar navigation (una sola vez -> evita duplicados)
     if is_multi_tenant():
         user = current_username() or "?"
-        if LOGOUT_URL:
-            info_col, logout_col = st.sidebar.columns([3, 1], vertical_alignment="center")
-            info_col.success(f"Sesión: **{user}**")
-            logout_col.link_button("Salir", LOGOUT_URL, help="Cerrar sesión")
-        else:
-            st.sidebar.success(f"Sesión: **{user}**")
+        st.sidebar.success(f"Sesión: **{user}**")
     st.sidebar.header("Navegación")
 
     # Si no hay dataset, bloqueamos visualización y grafos en la UI
@@ -120,6 +115,10 @@ def main():
         default="load",
         allowed_values=page_token_to_prefix.keys(),
     )
+
+    if is_multi_tenant() and LOGOUT_URL:
+        st.sidebar.markdown("<div style='flex:1 1 auto'></div>", unsafe_allow_html=True)
+        st.sidebar.link_button("Cerrar Sesión", LOGOUT_URL, help="Cerrar sesión")
 
     if page.startswith("Carga de datos"):
         render_load_data()

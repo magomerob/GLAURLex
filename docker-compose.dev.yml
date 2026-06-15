@@ -73,6 +73,7 @@ services:
       - GLAURLEX_DATA_DIR=/data
       - GLAURLEX_REMOTE_USER_HEADER=Remote-User
       - GLAURLEX_REQUIRE_AUTH=1
+      - GLAURLEX_LOGOUT_URL=https://auth.glaurlex.localhost/logout
       - APP_ENV=dev
     volumes:
       - ./var/dev-data:/data

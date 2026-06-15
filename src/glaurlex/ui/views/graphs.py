@@ -437,7 +437,7 @@ def render_graphs():
         return
 
     st.caption(
-        "SWI está entre 0 y: valores mayores indican mayor nivel de small-world"
+        "SWI está entre -1 y 1: valores mayores indican mayor nivel de small-world"
         "\n ω está entre -1 y 1: cerca de 0 sugiere small-world, cerca de -1 una "
         "red tipo lattice y cerca de 1 una red más aleatoria."
     )
