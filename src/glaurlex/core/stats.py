@@ -110,7 +110,7 @@ def estadisticas_df(df: pd.DataFrame, informantes_df: pd.DataFrame = None) -> pd
 
     out["tokens"] = out["tokens"].fillna(0).astype(int)
     out["disponibilidad"] = out["disponibilidad"].fillna(0.0)
-    out["avg_pos"] = out["avg_pos"].fillna(np.nan) + 1
+    out["avg_pos"] = out["avg_pos"].fillna(np.nan)
     out["aparición"] = out["aparición"].fillna(0.0)
 
     out = out.sort_values(by=["disponibilidad"], ascending=False)

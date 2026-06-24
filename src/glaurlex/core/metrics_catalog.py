@@ -189,9 +189,9 @@ METRIC_CATALOG: dict[str, MetricSpec] = dict(
         _spec(
             "avg_pos",
             "Posición promedio",
-            "Posición promedio (1-indexed) en la que el type es mencionado.",
+            "Posición promedio (0-indexed) en la que el type es mencionado.",
             "type",
-            "Media de `pos` agrupada por type, +1 para indexar desde 1.",
+            "Media de `pos` agrupada por type.",
             implementation="glaurlex.core.stats.estadisticas_df",
         ),
         _spec(
