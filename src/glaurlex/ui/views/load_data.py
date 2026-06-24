@@ -78,9 +78,6 @@ def render_load_data():
 
     col1, col2 = st.columns(2, gap="large")
 
-    # -----------------------
-    # A) Subir archivo y procesar
-    # -----------------------
     with col1:
         st.subheader("A) Subir archivo y procesar")
 
@@ -171,9 +168,6 @@ def render_load_data():
                 st.error(f"Error procesando {input_format}: {e}")
 
             shutil.rmtree(tmp_base)
-    # -----------------------
-    # B) Cargar ya procesado
-    # -----------------------
     with col2:
         st.subheader("B) Elegir dataset ya procesado")
 

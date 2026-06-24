@@ -141,12 +141,8 @@ def ensure_state():
 
 
 def _apply_user_scope(app_state: "AppState") -> None:
-    """! Fija `processed_dir` al sandbox del usuario autenticado.
-
-    Si `REQUIRE_AUTH` está activo y no hay usuario, detiene la página con
-    un mensaje. En modo local sin auth, deja el directorio por defecto y
-    permite que la UI lo edite.
-    """
+    """! Fija `processed_dir` al sandbox del usuario o detiene la página si
+    `REQUIRE_AUTH` está activo y no hay cabecera de autenticación."""
     username = _remote_username()
 
     if username:

@@ -30,10 +30,6 @@ from glaurlex.ui.state import (
     ensure_state,
 )
 
-# ---------------------------------------------------------------------------
-# Columnas disponibles para graficar (derivadas del catálogo central)
-# ---------------------------------------------------------------------------
-
 # Métricas por type excluidas de los gráficos de scatter (no aportan eje útil).
 _CHART_TYPE_EXCLUDED: set[str] = {"tokens"}
 
@@ -98,10 +94,6 @@ SNS_PALETTES = [
     "hls",
 ]
 
-# ---------------------------------------------------------------------------
-# Cache helpers
-# ---------------------------------------------------------------------------
-
 
 @st.cache_resource
 def _get_service(processed_dir: str) -> DatasetService:
@@ -130,11 +122,6 @@ def _community_cached(df_tema, directed: bool, cache_key: str) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
 def _fig_to_bytes(fig: plt.Figure, fmt: str, dpi: int) -> bytes:
     buf = io.BytesIO()
     fig.savefig(buf, format=fmt, dpi=dpi, bbox_inches="tight")
@@ -158,11 +145,6 @@ def _download_row(fig: plt.Figure, prefix: str, dpi: int) -> None:
             file_name=f"{prefix}.svg",
             mime="image/svg+xml",
         )
-
-
-# ---------------------------------------------------------------------------
-# Data loader (shared across chart types)
-# ---------------------------------------------------------------------------
 
 
 def _load_merged(
@@ -234,11 +216,6 @@ def _load_multi_group(
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
 
-# ---------------------------------------------------------------------------
-# Color-by helper
-# ---------------------------------------------------------------------------
-
-
 def _attach_color_col(
     df_plot: pd.DataFrame,
     color_key: str,
@@ -286,11 +263,6 @@ def _attach_color_col(
         .apply(lambda v: f"C{v}" if v != "?" else "?")
     )
     return df_plot, color_key
-
-
-# ---------------------------------------------------------------------------
-# Main render
-# ---------------------------------------------------------------------------
 
 
 def render_charts():
@@ -644,7 +616,6 @@ def render_charts():
 
     try:
         with st.spinner("Calculando datos..."):
-            # --- Barras ---
             if chart_type == "Barras":
                 if not y_cols:
                     st.warning("Selecciona al menos una métrica.")
@@ -726,7 +697,6 @@ def render_charts():
                 ax.set_xlabel("Type")
                 ax.tick_params(axis="x", rotation=45)
 
-            # --- Scatter ---
             elif chart_type == "Scatter":
                 if not scat_groups:
                     st.warning("Selecciona al menos un grupo.")
@@ -872,7 +842,6 @@ def render_charts():
                 ax.set_ylabel(available_cols.get(y_col, y_col))
                 prefix += f"_{x_col}_vs_{y_col}"
 
-            # --- Histograma ---
             elif chart_type == "Histograma":
                 if not hist_groups:
                     st.warning("Selecciona al menos un grupo.")
@@ -928,7 +897,6 @@ def render_charts():
                 ax.set_xlabel(available_cols.get(hist_col, hist_col))
                 prefix += f"_{hist_col}"
 
-            # --- Grafo ---
             elif chart_type == "Grafo":
                 group = st.session_state.groups.get(graph_group, ALL_GROUP)
                 informantes_df = getattr(ds, "informantes", None)
@@ -1048,7 +1016,6 @@ def render_charts():
                 )
                 prefix += f"_{tema}_{graph_group}_grafo"
 
-            # --- Boxplot ---
             elif chart_type == "Boxplot":
 
                 def _box_filter(df: pd.DataFrame) -> pd.DataFrame:

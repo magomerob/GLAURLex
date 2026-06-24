@@ -39,10 +39,6 @@ from glaurlex.ui.state import (
     ensure_variables_loaded_for_dataset,
 )
 
-# ---------------------------------------------------------------------------
-# Catálogos de métricas (derivados del catálogo central en core)
-# ---------------------------------------------------------------------------
-
 INFORMANT_METRICS: dict[str, str] = labels_by_scope("informant")
 TYPE_METRICS: dict[str, str] = labels_by_scope("type")
 NODE_METRICS: dict[str, str] = labels_by_scope("node")
@@ -56,11 +52,6 @@ _INFORMANT_DROP_COLS = {
 }
 
 
-# ---------------------------------------------------------------------------
-# Cache helpers
-# ---------------------------------------------------------------------------
-
-
 @st.cache_resource
 def _get_service(processed_dir: str) -> DatasetService:
     return DatasetService(processed_dir)
@@ -69,11 +60,6 @@ def _get_service(processed_dir: str) -> DatasetService:
 @st.cache_data
 def _load_dataset(processed_dir: str, name: str):
     return _get_service(processed_dir).load_processed(name)
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 
 def _is_numeric_high_card(series: pd.Series, min_unique: int = 8) -> bool:
@@ -128,11 +114,6 @@ def _significance_badge(p: float, alpha: float = 0.05) -> str:
     return "ns"
 
 
-# ---------------------------------------------------------------------------
-# Sub-vistas
-# ---------------------------------------------------------------------------
-
-
 def _render_descriptive_section(
     metric_values: pd.Series,
     metric_label: str,
@@ -164,9 +145,9 @@ def _render_descriptive_section(
         st.json(norm)
         if "p_value" in norm:
             verdict = (
-                "✅ No se rechaza H₀ → distribución compatible con normal"
+                "No se rechaza H₀ → distribución compatible con normal"
                 if norm["p_value"] > 0.05
-                else "❌ Se rechaza H₀ → distribución no normal"
+                else "Se rechaza H₀ → distribución no normal"
             )
             st.caption(verdict + f" (α=0.05, {norm['test']})")
 
@@ -428,11 +409,6 @@ def _render_inference_numeric(df: pd.DataFrame, metric: str, metric_label: str, 
     fig.tight_layout()
     st.pyplot(fig)
     plt.close(fig)
-
-
-# ---------------------------------------------------------------------------
-# Render principal
-# ---------------------------------------------------------------------------
 
 
 def render_inference():

@@ -322,7 +322,7 @@ def small_world_indices(
         result["SWI"] = ((L - Ll) / (Lr - Ll)) * ((C - Cr) / (Cl - Cr))
 
     if status_cb:
-        status_cb("Listo ✅")
+        status_cb("Listo")
 
     return result
 
