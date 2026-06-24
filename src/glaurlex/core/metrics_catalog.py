@@ -74,15 +74,10 @@ def _spec(
     )
 
 
-# ---------------------------------------------------------------------------
-# Registro central
-# ---------------------------------------------------------------------------
-# Orden: por scope (informant → type → node) y, dentro de cada scope, en el
-# mismo orden que aparecen actualmente en la UI para preservar la experiencia.
-
+# Orden por scope (informant → type → node) replicando el orden de la UI.
 METRIC_CATALOG: dict[str, MetricSpec] = dict(
     [
-        # --- Informant ---
+        # Informant
         _spec(
             "n_tokens",
             "Tokens producidos",
@@ -160,7 +155,7 @@ METRIC_CATALOG: dict[str, MetricSpec] = dict(
             implementation="glaurlex.core.inference.informant_metrics",
             dependencies=("tokens", "type_stats"),
         ),
-        # --- Type ---
+        # Type
         _spec(
             "disponibilidad",
             "Disponibilidad",
@@ -189,9 +184,9 @@ METRIC_CATALOG: dict[str, MetricSpec] = dict(
         _spec(
             "avg_pos",
             "Posición promedio",
-            "Posición promedio (1-indexed) en la que el type es mencionado.",
+            "Posición promedio (0-indexed) en la que el type es mencionado.",
             "type",
-            "Media de `pos` agrupada por type, +1 para indexar desde 1.",
+            "Media de `pos` agrupada por type.",
             implementation="glaurlex.core.stats.estadisticas_df",
         ),
         _spec(
@@ -210,7 +205,7 @@ METRIC_CATALOG: dict[str, MetricSpec] = dict(
             "value_counts() sobre la columna `type`.",
             implementation="glaurlex.core.stats.estadisticas_df",
         ),
-        # --- Node (graph) ---
+        # Node (graph)
         _spec(
             "degree",
             "Grado",
@@ -290,11 +285,6 @@ METRIC_CATALOG: dict[str, MetricSpec] = dict(
         ),
     ]
 )
-
-
-# ---------------------------------------------------------------------------
-# Helpers públicos
-# ---------------------------------------------------------------------------
 
 
 def get_metric(key: str) -> MetricSpec:

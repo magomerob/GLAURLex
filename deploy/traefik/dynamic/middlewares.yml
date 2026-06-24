@@ -1,0 +1,32 @@
+http:
+  middlewares:
+    https-redirect:
+      redirectScheme:
+        scheme: https
+        permanent: true
+
+    # Reenvía cada request a Authelia. Si la sesión es válida, Authelia
+    # contesta 200 y Traefik propaga las cabeceras Remote-User / Remote-Groups
+    # / Remote-Name / Remote-Email al backend (GLAURLex las lee desde
+    # st.context.headers["Remote-User"]).
+    authelia:
+      forwardAuth:
+        address: http://authelia:9091/api/authz/forward-auth
+        trustForwardHeader: true
+        authResponseHeaders:
+          - Remote-User
+          - Remote-Groups
+          - Remote-Name
+          - Remote-Email
+
+    # Variante para endpoints que sólo deben verificar sesión sin redirigir
+    # (útil si añades APIs en el futuro).
+    authelia-basic:
+      forwardAuth:
+        address: http://authelia:9091/api/authz/auth-request
+        trustForwardHeader: true
+        authResponseHeaders:
+          - Remote-User
+          - Remote-Groups
+          - Remote-Name
+          - Remote-Email

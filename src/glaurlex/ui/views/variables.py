@@ -76,7 +76,6 @@ def render_variables() -> None:
     candidates = [c for c in informantes.columns if c not in _INFORMANT_DROP_COLS]
     cat_cols, _num_cols = _categorize_variables(informantes, candidates)
 
-    # ---------------------------------------------------------------- Resumen
     st.subheader("Resumen de variables")
     rows = []
     for c in sorted(candidates):
@@ -91,7 +90,7 @@ def render_variables() -> None:
                 "Variable": c,
                 "Tipo": tipo,
                 "# niveles": n_uni,
-                "Ordinal": "✅" if ordinal else "—",
+                "Ordinal": "Sí" if ordinal else "—",
                 "Orden": _summarize_order(order) if ordinal else "—",
             }
         )
@@ -103,7 +102,6 @@ def render_variables() -> None:
 
     st.divider()
 
-    # ----------------------------------------------------------- Editor
     st.subheader("Configurar variable como ordinal")
     sel_col = st.selectbox(
         "Variable categórica",

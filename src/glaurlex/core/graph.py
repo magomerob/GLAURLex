@@ -319,10 +319,10 @@ def small_world_indices(
             "No se puede calcular SWI: la diferencia entre clustering de referencia es 0."
         )
     else:
-        result["SWI"] = ((L / Ll) / (Lr - Ll)) * ((C - Cr) / (Cl - Cr))
+        result["SWI"] = ((L - Ll) / (Lr - Ll)) * ((C - Cr) / (Cl - Cr))
 
     if status_cb:
-        status_cb("Listo ✅")
+        status_cb("Listo")
 
     return result
 

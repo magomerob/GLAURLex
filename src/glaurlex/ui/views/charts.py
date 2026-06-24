@@ -21,6 +21,7 @@ from glaurlex.ui.metrics_cache import (
     bigrams_cached,
     filter_by_group,
     infer_informant_col,
+    informant_metrics_cached,
     node_stats_cached,
     type_stats_cached,
 )
@@ -28,10 +29,6 @@ from glaurlex.ui.state import (
     ensure_groups_loaded_for_dataset,
     ensure_state,
 )
-
-# ---------------------------------------------------------------------------
-# Columnas disponibles para graficar (derivadas del catálogo central)
-# ---------------------------------------------------------------------------
 
 # Métricas por type excluidas de los gráficos de scatter (no aportan eje útil).
 _CHART_TYPE_EXCLUDED: set[str] = {"tokens"}
@@ -41,6 +38,8 @@ TYPE_STATS_COLS: dict[str, str] = {
 }
 
 NODE_STATS_COLS: dict[str, str] = labels_by_scope("node")
+
+INFORMANT_STATS_COLS: dict[str, str] = labels_by_scope("informant")
 
 ALL_METRIC_COLS: dict[str, str] = {**TYPE_STATS_COLS, **NODE_STATS_COLS}
 
@@ -95,10 +94,6 @@ SNS_PALETTES = [
     "hls",
 ]
 
-# ---------------------------------------------------------------------------
-# Cache helpers
-# ---------------------------------------------------------------------------
-
 
 @st.cache_resource
 def _get_service(processed_dir: str) -> DatasetService:
@@ -127,11 +122,6 @@ def _community_cached(df_tema, directed: bool, cache_key: str) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
 def _fig_to_bytes(fig: plt.Figure, fmt: str, dpi: int) -> bytes:
     buf = io.BytesIO()
     fig.savefig(buf, format=fmt, dpi=dpi, bbox_inches="tight")
@@ -157,11 +147,6 @@ def _download_row(fig: plt.Figure, prefix: str, dpi: int) -> None:
         )
 
 
-# ---------------------------------------------------------------------------
-# Data loader (shared across chart types)
-# ---------------------------------------------------------------------------
-
-
 def _load_merged(
     ds,
     tema_name: str,
@@ -174,6 +159,21 @@ def _load_merged(
     group = st.session_state.groups.get(group_name, ALL_GROUP)
     informantes_df = getattr(ds, "informantes", None)
     informantes_f = apply_group(informantes_df, group) if informantes_df is not None else None
+
+    if source == "Informantes":
+        # Las métricas por informante son globales: no se filtran por tema, se
+        # combinan todos los temas del dataset (solo se respeta el grupo activo).
+        inf_for_metrics = informantes_f if informantes_f is not None else pd.DataFrame()
+        frames = [
+            filter_by_group(t_df, informantes_f, infer_informant_col(t_df))
+            for t_df in ds.temas.values()
+        ]
+        df_all = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+        cache_key_all = f"{dataset_name}::__ALL_TEMAS__::{group_name}::{len(df_all)}"
+        im = informant_metrics_cached(df_all, inf_for_metrics, cache_key=cache_key_all)
+        # El resto del código de gráficos usa "type" como columna identificadora.
+        return im.rename(columns={"user_id": "type"}) if "user_id" in im.columns else im
+
     df_tema = ds.temas[tema_name]
     informant_col = infer_informant_col(df_tema)
     df_f = filter_by_group(df_tema, informantes_f, informant_col)
@@ -214,11 +214,6 @@ def _load_multi_group(
         df_g["Grupo"] = g
         frames.append(df_g)
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
-
-
-# ---------------------------------------------------------------------------
-# Color-by helper
-# ---------------------------------------------------------------------------
 
 
 def _attach_color_col(
@@ -270,11 +265,6 @@ def _attach_color_col(
     return df_plot, color_key
 
 
-# ---------------------------------------------------------------------------
-# Main render
-# ---------------------------------------------------------------------------
-
-
 def render_charts():
     s = ensure_state()
     ensure_groups_loaded_for_dataset(s.dataset_name)
@@ -313,9 +303,15 @@ def render_charts():
     with col_source:
         source = st.radio(
             "Fuente de métricas",
-            ["Types", "Nodos", "Combinada"],
+            ["Types", "Nodos", "Combinada", "Informantes"],
             horizontal=True,
             key="charts::source",
+        )
+
+    if source == "Informantes":
+        st.caption(
+            "ℹ️ La fuente **Informantes** agrega todos los temas del dataset: "
+            "la selección de tema no filtra los datos (solo se aplica el grupo)."
         )
 
     directed = False
@@ -329,6 +325,8 @@ def render_charts():
         if source == "Types"
         else NODE_STATS_COLS
         if source == "Nodos"
+        else INFORMANT_STATS_COLS
+        if source == "Informantes"
         else ALL_METRIC_COLS
     )
     col_keys = list(available_cols.keys())
@@ -436,7 +434,7 @@ def render_charts():
                 key="charts::hist_groups",
             )
 
-        cx, cy = st.columns(2)
+        cx, cy, cz = st.columns(3)
         with cx:
             hist_col = st.selectbox(
                 "Variable",
@@ -446,6 +444,10 @@ def render_charts():
             )
         with cy:
             bins = st.slider("Número de bins", 5, 100, 30, key="charts::hist_bins")
+        with cz:
+            hist_kde = st.checkbox(
+                "Línea de distribución (KDE)", value=True, key="charts::hist_kde"
+            )
 
     elif chart_type == "Grafo":
         c1, c2 = st.columns(2)
@@ -614,7 +616,6 @@ def render_charts():
 
     try:
         with st.spinner("Calculando datos..."):
-            # --- Barras ---
             if chart_type == "Barras":
                 if not y_cols:
                     st.warning("Selecciona al menos una métrica.")
@@ -696,7 +697,6 @@ def render_charts():
                 ax.set_xlabel("Type")
                 ax.tick_params(axis="x", rotation=45)
 
-            # --- Scatter ---
             elif chart_type == "Scatter":
                 if not scat_groups:
                     st.warning("Selecciona al menos un grupo.")
@@ -842,7 +842,6 @@ def render_charts():
                 ax.set_ylabel(available_cols.get(y_col, y_col))
                 prefix += f"_{x_col}_vs_{y_col}"
 
-            # --- Histograma ---
             elif chart_type == "Histograma":
                 if not hist_groups:
                     st.warning("Selecciona al menos un grupo.")
@@ -858,7 +857,7 @@ def render_charts():
                     if top_n is not None:
                         sort_col = top_metric if top_metric in df.columns else hist_col
                         df = df.nlargest(int(top_n), sort_col)
-                    sns.histplot(data=df, x=hist_col, bins=bins, ax=ax, kde=True)
+                    sns.histplot(data=df, x=hist_col, bins=bins, ax=ax, kde=hist_kde)
                     ax.set_title(
                         f"Distribución de {available_cols.get(hist_col, hist_col)} "
                         f"— {tema} / {hist_groups[0]}"
@@ -886,7 +885,7 @@ def render_charts():
                         hue="Grupo",
                         bins=bins,
                         ax=ax,
-                        kde=True,
+                        kde=hist_kde,
                         element="step",
                         fill=False,
                     )
@@ -898,7 +897,6 @@ def render_charts():
                 ax.set_xlabel(available_cols.get(hist_col, hist_col))
                 prefix += f"_{hist_col}"
 
-            # --- Grafo ---
             elif chart_type == "Grafo":
                 group = st.session_state.groups.get(graph_group, ALL_GROUP)
                 informantes_df = getattr(ds, "informantes", None)
@@ -1018,7 +1016,6 @@ def render_charts():
                 )
                 prefix += f"_{tema}_{graph_group}_grafo"
 
-            # --- Boxplot ---
             elif chart_type == "Boxplot":
 
                 def _box_filter(df: pd.DataFrame) -> pd.DataFrame:

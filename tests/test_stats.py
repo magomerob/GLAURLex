@@ -4,16 +4,10 @@ import pytest
 
 from glaurlex.core.stats import estadisticas_df
 
-# LAS DISPONIBILIDADES SE TOMAN DE LEXPRO, SIN CORREGIR LA ERRATA
+# Disponibilidades de referencia tomadas de LexPro (errata original incluida).
 
-# ============================================================
-# Ejemplo 1
-# U1: a,b,c
-# U2: b,a,c
-# U3: b,c,a
-# Disponibilidades esperadas:
-#   b=0.8215, a=0.5601, c=0.2987
-# ============================================================
+# Ejemplo 1 — U1: a,b,c | U2: b,a,c | U3: b,c,a
+# Esperado: b=0.8215, a=0.5601, c=0.2987
 
 
 @pytest.fixture
@@ -60,14 +54,8 @@ def df_example_1():
     )
 
 
-# ============================================================
-# Ejemplo 2
-# U1: a,b
-# U2: a,c
-# U3: a,d
-# Disponibilidades esperadas:
-#   a=1.0, b=c=d=0.0334196
-# ============================================================
+# Ejemplo 2 — U1: a,b | U2: a,c | U3: a,d
+# Esperado: a=1.0, b=c=d=0.0334196
 
 
 @pytest.fixture
@@ -110,11 +98,6 @@ def empty_df():
     return pd.DataFrame(columns=["type", "pos", "user_id"])
 
 
-# ============================================================
-# Helpers
-# ============================================================
-
-
 def _assert_no_duplicate_token_per_user(df: pd.DataFrame) -> None:
     assert not df.duplicated(subset=["user_id", "type"]).any()
 
@@ -137,11 +120,6 @@ def _assert_basic_properties(stats: pd.DataFrame) -> None:
 
     disp = stats["disponibilidad"].to_numpy()
     assert np.all(disp[:-1] >= disp[1:])
-
-
-# ============================================================
-# Tests – Ejemplo 1
-# ============================================================
 
 
 def test_example_1_structure(df_example_1):
@@ -185,11 +163,6 @@ def test_example_1_disponibilidades(df_example_1):
     assert np.isclose(stats.loc["b", "disponibilidad"], 0.772212, atol=1e-4)
     assert np.isclose(stats.loc["a", "disponibilidad"], 0.472299, atol=1e-4)
     assert np.isclose(stats.loc["c", "disponibilidad"], 0.172385, atol=1e-4)
-
-
-# ============================================================
-# Tests – Ejemplo 2
-# ============================================================
 
 
 def test_example_2_structure(df_example_2):
@@ -239,11 +212,6 @@ def test_example_2_disponibilidades(df_example_2):
     assert np.isclose(stats.loc["b", "disponibilidad"], 0.0334196, atol=1e-4)
     assert np.isclose(stats.loc["c", "disponibilidad"], 0.0334196, atol=1e-4)
     assert np.isclose(stats.loc["d", "disponibilidad"], 0.0334196, atol=1e-4)
-
-
-# ============================================================
-# Caso vacío
-# ============================================================
 
 
 def test_empty_df(empty_df):

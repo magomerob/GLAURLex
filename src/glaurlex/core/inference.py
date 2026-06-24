@@ -15,11 +15,6 @@ from scipy import stats
 from glaurlex.core.stats import estadisticas_df
 
 
-# ---------------------------------------------------------------------------
-# Métricas por informante
-# ---------------------------------------------------------------------------
-
-
 def _shannon_entropy(counts: np.ndarray) -> float:
     """! Entropía de Shannon (base 2) sobre un vector de conteos."""
     total = counts.sum()
@@ -112,11 +107,6 @@ def informant_metrics(
     return merged
 
 
-# ---------------------------------------------------------------------------
-# Análisis descriptivo
-# ---------------------------------------------------------------------------
-
-
 def describe_series(s: pd.Series) -> Dict[str, Any]:
     """! Estadísticos descriptivos detallados sobre una serie numérica.
 
@@ -178,11 +168,6 @@ def normality_test(s: pd.Series) -> Dict[str, Any]:
         "p_value": float(p),
         "normal_α=0.05": bool(p > 0.05),
     }
-
-
-# ---------------------------------------------------------------------------
-# Inferencia: comparación entre grupos
-# ---------------------------------------------------------------------------
 
 
 def _cohens_d(a: np.ndarray, b: np.ndarray) -> float:

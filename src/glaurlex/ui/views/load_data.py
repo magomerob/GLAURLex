@@ -8,7 +8,11 @@ import streamlit as st
 
 from glaurlex.config import DEFAULT_PROCESSED_DIR
 from glaurlex.core.dataset_service import DatasetService
-from glaurlex.ui.state import ensure_state, set_query_param, sync_query_state
+from glaurlex.ui.state import (
+    current_username,
+    ensure_state,
+    set_query_param,
+)
 
 
 @st.cache_resource
@@ -60,24 +64,20 @@ def render_load_data():
 
     st.header("Carga de datos")
 
-    sync_query_state(
-        key="load_data::processed_dir",
-        param="processed_dir",
-        default=str(DEFAULT_PROCESSED_DIR),
-    )
-    processed_dir = st.text_input(
-        "Directorio de datasets procesados",
-        key="load_data::processed_dir",
-        help="Aquí se guardan (y se buscan) los directorios con parquets.",
-    )
+    # El directorio de datos viene de la config (env `GLAURLEX_DATA_DIR`) y,
+    # en modo multiusuario, se fija al sandbox del usuario autenticado. La UI
+    # solo muestra dónde está; no permite cambiarlo.
+    processed_dir = st.session_state.get("processed_dir", str(DEFAULT_PROCESSED_DIR))
     st.session_state["processed_dir"] = processed_dir
+    user = current_username()
+    if user:
+        st.caption(f"Usuario: **{user}** — sandbox: `{processed_dir}`")
+    else:
+        st.caption(f"Directorio de datos: `{processed_dir}`")
     service = get_dataset_service(processed_dir)
 
     col1, col2 = st.columns(2, gap="large")
 
-    # -----------------------
-    # A) Subir archivo y procesar
-    # -----------------------
     with col1:
         st.subheader("A) Subir archivo y procesar")
 
@@ -168,9 +168,6 @@ def render_load_data():
                 st.error(f"Error procesando {input_format}: {e}")
 
             shutil.rmtree(tmp_base)
-    # -----------------------
-    # B) Cargar ya procesado
-    # -----------------------
     with col2:
         st.subheader("B) Elegir dataset ya procesado")
 
@@ -205,10 +202,11 @@ def render_load_data():
         with st.expander("Ver temas"):
             st.write(temas)
 
-        if st.button("Descargar dataset (desactivar)"):
-            s.dataset_name = None
-            set_query_param("dataset", None)
-            st.info("Dataset desactivado. Visualización y Grafos quedan bloqueados.")
-            st.rerun()
+        # No es necesario
+        # if st.button("Descargar dataset (desactivar)"):
+        #    s.dataset_name = None
+        #    set_query_param("dataset", None)
+        #    st.info("Dataset desactivado. Visualización y Grafos quedan bloqueados.")
+        #    st.rerun()
     else:
         st.write("No hay dataset activo.")

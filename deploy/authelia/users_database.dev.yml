@@ -1,0 +1,21 @@
+---
+# Base de datos de usuarios SOLO para desarrollo local.
+# Contraseñas en claro intencionadamente; no copiar a producción.
+
+users:
+  alice:
+    disabled: false
+    displayname: "Alice (dev)"
+    # Password: changeme
+    password: "$argon2id$v=19$m=65536,t=3,p=4$sA+5WK7w0R7Jb32uFfK2lg$lr6N+wbpz1UyBeEb0RsFbnshH6bXn+HKwdRHp7wLZLA"
+    email: alice@localhost
+    groups:
+      - users
+  bob:
+    disabled: false
+    displayname: "Bob (dev)"
+    # Password: changeme
+    password: "$argon2id$v=19$m=65536,t=3,p=4$sA+5WK7w0R7Jb32uFfK2lg$lr6N+wbpz1UyBeEb0RsFbnshH6bXn+HKwdRHp7wLZLA"
+    email: bob@localhost
+    groups:
+      - users

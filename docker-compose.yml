@@ -1,0 +1,115 @@
+# GLAURLex stack: Traefik (reverse proxy + ACME) + Authelia (auth) + app.
+#
+# Configura `.env` antes de levantar (ver `.env.example`).
+# Primera vez en el servidor:
+#   1. cp .env.example .env  &&  editar valores
+#   2. touch deploy/traefik/acme.json && chmod 600 deploy/traefik/acme.json
+#   3. editar deploy/authelia/users_database.yml (hashear contraseñas)
+#   4. docker compose up -d
+#
+# Los datos de cada usuario viven en ${HOST_DATA_DIR}/<username>/processed
+# y se montan en /data dentro del contenedor de la app. El contenedor corre
+# con PUID/PGID no-root (por defecto 1000:1000).
+
+services:
+  traefik:
+    image: traefik:v3.7.1
+    restart: unless-stopped
+    command:
+      - --configFile=/etc/traefik/traefik.yml
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - ACME_EMAIL=${ACME_EMAIL}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./deploy/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./deploy/traefik/dynamic:/etc/traefik/dynamic:ro
+      - ./deploy/traefik/acme.json:/letsencrypt/acme.json
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      # Redirección HTTP -> HTTPS global
+      - traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)
+      - traefik.http.routers.http-catchall.entrypoints=web
+      - traefik.http.routers.http-catchall.middlewares=https-redirect@file
+      # Dashboard
+      - traefik.http.routers.dashboard.rule=Host(`traefik.glaurlex.mgrobres.es`)
+      - traefik.http.routers.dashboard.entrypoints=websecure
+      - traefik.http.routers.dashboard.tls=true
+      - traefik.http.routers.dashboard.tls.certresolver=letsencrypt
+      - traefik.http.routers.dashboard.service=api@internal
+      - traefik.http.routers.dashboard.middlewares=authelia@file
+
+  authelia:
+    image: authelia/authelia:4.39.20
+    restart: unless-stopped
+    expose:
+      - "9091"
+    environment:
+      - X_AUTHELIA_CONFIG_FILTERS=template
+      - AUTH_HOST=${AUTH_HOST}
+      - APP_HOST=${APP_HOST}
+      - COOKIE_DOMAIN=${COOKIE_DOMAIN}
+      - TZ=${TZ:-UTC}
+      - AUTHELIA_JWT_SECRET_FILE=/secrets/jwt_secret
+      - AUTHELIA_SESSION_SECRET_FILE=/secrets/session_secret
+      - AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE=/secrets/storage_encryption_key
+    volumes:
+      - ./deploy/authelia:/config
+      - ./deploy/authelia/secrets:/secrets
+      - authelia_data:/data
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.authelia.rule=Host(`${AUTH_HOST}`)
+      - traefik.http.routers.authelia.entrypoints=websecure
+      - traefik.http.routers.authelia.tls=true
+      - traefik.http.routers.authelia.tls.certresolver=letsencrypt
+      - traefik.http.services.authelia.loadbalancer.server.port=9091
+
+  glaurlex:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PUID: ${PUID:-1000}
+        PGID: ${PGID:-1000}
+    image: glaurlex:latest
+    restart: unless-stopped
+    user: "${PUID:-1000}:${PGID:-1000}"
+    expose:
+      - "8501"
+    environment:
+      - GLAURLEX_DATA_DIR=/data
+      - GLAURLEX_REMOTE_USER_HEADER=Remote-User
+      - GLAURLEX_REQUIRE_AUTH=1
+      - GLAURLEX_LOGOUT_URL=https://${AUTH_HOST}/logout
+      - APP_ENV=prod
+    volumes:
+      # Raíz por-usuario en el host. Cada subcarpeta es <username>/processed.
+      - ${HOST_DATA_DIR}:/data
+    networks:
+      - proxy
+    depends_on:
+      - authelia
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.glaurlex.rule=Host(`${APP_HOST}`)
+      - traefik.http.routers.glaurlex.entrypoints=websecure
+      - traefik.http.routers.glaurlex.tls=true
+      - traefik.http.routers.glaurlex.tls.certresolver=letsencrypt
+      - traefik.http.routers.glaurlex.middlewares=authelia@file
+      - traefik.http.services.glaurlex.loadbalancer.server.port=8501
+      # Streamlit usa websockets en /_stcore/stream
+      - traefik.http.services.glaurlex.loadbalancer.sticky=true
+
+networks:
+  proxy:
+    name: glaurlex_proxy
+
+volumes:
+  authelia_data:

@@ -74,11 +74,7 @@ def test_levels_missing_from_order_are_appended(trend_df: pd.DataFrame):
     assert levels_out[1:] == sorted(levels_out[1:])
 
 
-# ---------------------------------------------------------------------------
-# Matriz de tests para compare_groups (independiente del bloque ordinal)
-# ---------------------------------------------------------------------------
-
-
+# Matriz de tests para compare_groups (independiente del bloque ordinal).
 def _build_groups_df(
     means: list[float], n_per_group: int = 25, scale: float = 0.4, seed: int = 0
 ) -> pd.DataFrame:

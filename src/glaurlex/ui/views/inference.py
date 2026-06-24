@@ -5,6 +5,7 @@ léxicas y variables sociolinguísticas.
 
 from __future__ import annotations
 
+import io
 from typing import Iterable, List, Optional
 
 import matplotlib.pyplot as plt
@@ -38,10 +39,6 @@ from glaurlex.ui.state import (
     ensure_variables_loaded_for_dataset,
 )
 
-# ---------------------------------------------------------------------------
-# Catálogos de métricas (derivados del catálogo central en core)
-# ---------------------------------------------------------------------------
-
 INFORMANT_METRICS: dict[str, str] = labels_by_scope("informant")
 TYPE_METRICS: dict[str, str] = labels_by_scope("type")
 NODE_METRICS: dict[str, str] = labels_by_scope("node")
@@ -55,11 +52,6 @@ _INFORMANT_DROP_COLS = {
 }
 
 
-# ---------------------------------------------------------------------------
-# Cache helpers
-# ---------------------------------------------------------------------------
-
-
 @st.cache_resource
 def _get_service(processed_dir: str) -> DatasetService:
     return DatasetService(processed_dir)
@@ -68,11 +60,6 @@ def _get_service(processed_dir: str) -> DatasetService:
 @st.cache_data
 def _load_dataset(processed_dir: str, name: str):
     return _get_service(processed_dir).load_processed(name)
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 
 def _is_numeric_high_card(series: pd.Series, min_unique: int = 8) -> bool:
@@ -99,6 +86,14 @@ def _categorize_variables(
     return sorted(cats), sorted(nums)
 
 
+def _fig_to_png_bytes(fig: plt.Figure, dpi: int = 300) -> bytes:
+    """! Serializa una figura matplotlib a PNG en alta resolución."""
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
+    buf.seek(0)
+    return buf.read()
+
+
 def _format_pvalue(p: float) -> str:
     if pd.isna(p):
         return "—"
@@ -117,11 +112,6 @@ def _significance_badge(p: float, alpha: float = 0.05) -> str:
     if p < alpha:
         return "★ (p<0.05)"
     return "ns"
-
-
-# ---------------------------------------------------------------------------
-# Sub-vistas
-# ---------------------------------------------------------------------------
 
 
 def _render_descriptive_section(
@@ -155,73 +145,97 @@ def _render_descriptive_section(
         st.json(norm)
         if "p_value" in norm:
             verdict = (
-                "✅ No se rechaza H₀ → distribución compatible con normal"
+                "No se rechaza H₀ → distribución compatible con normal"
                 if norm["p_value"] > 0.05
-                else "❌ Se rechaza H₀ → distribución no normal"
+                else "Se rechaza H₀ → distribución no normal"
             )
             st.caption(verdict + f" (α=0.05, {norm['test']})")
 
     # Plots: Histograma + KDE | Boxplot/Violin | Q-Q plot
+    # Cada gráfico se define como un "drawer" que pinta sobre un Axes dado, para
+    # poder renderizarlo tanto en la vista combinada como en figuras individuales
+    # de alta resolución descargables.
+    def _draw_hist(ax: plt.Axes) -> None:
+        sns.histplot(s, kde=True, ax=ax, color="#4C72B0")
+        ax.axvline(desc["media"], color="#C44E52", linestyle="--", label=f"μ={desc['media']:.3f}")
+        ax.axvline(
+            desc["mediana"], color="#55A868", linestyle=":", label=f"med={desc['mediana']:.3f}"
+        )
+        ax.set_xlabel(metric_label)
+        ax.set_ylabel("Frecuencia")
+        ax.set_title("Histograma + KDE")
+        ax.legend(fontsize=8)
+
+    def _draw_box(ax: plt.Axes) -> None:
+        if by_var is not None and df_full is not None and by_var in df_full.columns:
+            df_plot = df_full[[by_var]].copy()
+            df_plot["__metric"] = pd.to_numeric(df_full[metric_values.name], errors="coerce")
+            df_plot = df_plot.dropna()
+            if not df_plot.empty:
+                present = df_plot[by_var].dropna().astype(str).unique().tolist()
+                if order:
+                    seen = set()
+                    plot_order = [
+                        lv for lv in order if lv in present and not (lv in seen or seen.add(lv))
+                    ]
+                    plot_order += sorted(lv for lv in present if lv not in set(order))
+                else:
+                    plot_order = sorted(present, key=str)
+                df_plot[by_var] = df_plot[by_var].astype(str)
+                sns.violinplot(
+                    data=df_plot,
+                    x=by_var,
+                    y="__metric",
+                    order=plot_order,
+                    ax=ax,
+                    inner="box",
+                    cut=0,
+                )
+                ax.tick_params(axis="x", rotation=30)
+                ax.set_ylabel(metric_label)
+                ax.set_title(f"Distribución por {by_var}")
+                return
+        sns.boxplot(y=s, ax=ax, color="#4C72B0")
+        ax.set_ylabel(metric_label)
+        ax.set_title("Boxplot")
+
+    def _draw_qq(ax: plt.Axes) -> None:
+        sp_stats.probplot(s, dist="norm", plot=ax)
+        ax.set_title("Q-Q plot vs Normal")
+        ax.get_lines()[0].set_markerfacecolor("#4C72B0")
+        ax.get_lines()[0].set_markeredgecolor("#4C72B0")
+        ax.get_lines()[1].set_color("#C44E52")
+
     st.markdown("**Distribución**")
     fig, axes = plt.subplots(1, 3, figsize=(15, 4))
-
-    # 1) Histograma + KDE
-    sns.histplot(s, kde=True, ax=axes[0], color="#4C72B0")
-    axes[0].axvline(desc["media"], color="#C44E52", linestyle="--", label=f"μ={desc['media']:.3f}")
-    axes[0].axvline(
-        desc["mediana"], color="#55A868", linestyle=":", label=f"med={desc['mediana']:.3f}"
-    )
-    axes[0].set_xlabel(metric_label)
-    axes[0].set_ylabel("Frecuencia")
-    axes[0].set_title("Histograma + KDE")
-    axes[0].legend(fontsize=8)
-
-    # 2) Boxplot (con violín superpuesto si hay agrupador)
-    if by_var is not None and df_full is not None and by_var in df_full.columns:
-        df_plot = df_full[[by_var]].copy()
-        df_plot["__metric"] = pd.to_numeric(df_full[metric_values.name], errors="coerce")
-        df_plot = df_plot.dropna()
-        if not df_plot.empty:
-            present = df_plot[by_var].dropna().astype(str).unique().tolist()
-            if order:
-                seen = set()
-                plot_order = [
-                    lv for lv in order if lv in present and not (lv in seen or seen.add(lv))
-                ]
-                plot_order += sorted(lv for lv in present if lv not in set(order))
-            else:
-                plot_order = sorted(present, key=str)
-            df_plot[by_var] = df_plot[by_var].astype(str)
-            sns.violinplot(
-                data=df_plot,
-                x=by_var,
-                y="__metric",
-                order=plot_order,
-                ax=axes[1],
-                inner="box",
-                cut=0,
-            )
-            axes[1].tick_params(axis="x", rotation=30)
-            axes[1].set_ylabel(metric_label)
-            axes[1].set_title(f"Distribución por {by_var}")
-        else:
-            sns.boxplot(y=s, ax=axes[1], color="#4C72B0")
-            axes[1].set_title("Boxplot")
-    else:
-        sns.boxplot(y=s, ax=axes[1], color="#4C72B0")
-        axes[1].set_ylabel(metric_label)
-        axes[1].set_title("Boxplot")
-
-    # 3) Q-Q plot
-    sp_stats.probplot(s, dist="norm", plot=axes[2])
-    axes[2].set_title("Q-Q plot vs Normal")
-    axes[2].get_lines()[0].set_markerfacecolor("#4C72B0")
-    axes[2].get_lines()[0].set_markeredgecolor("#4C72B0")
-    axes[2].get_lines()[1].set_color("#C44E52")
-
+    _draw_hist(axes[0])
+    _draw_box(axes[1])
+    _draw_qq(axes[2])
     fig.tight_layout()
     st.pyplot(fig)
     plt.close(fig)
+
+    # Descarga individual de cada gráfico en alta resolución (PNG, 300 dpi).
+    metric_key = str(metric_values.name) if metric_values.name is not None else "metrica"
+    plots = [
+        ("histograma", "Histograma + KDE", _draw_hist),
+        ("distribucion", "Boxplot/Violín", _draw_box),
+        ("qqplot", "Q-Q plot", _draw_qq),
+    ]
+    dl_cols = st.columns(3)
+    for (tag, btn_label, drawer), col in zip(plots, dl_cols):
+        single_fig, single_ax = plt.subplots(figsize=(7, 5))
+        drawer(single_ax)
+        single_fig.tight_layout()
+        with col:
+            st.download_button(
+                f"⬇ {btn_label} (PNG)",
+                data=_fig_to_png_bytes(single_fig, dpi=300),
+                file_name=f"{metric_key}_{tag}.png",
+                mime="image/png",
+                key=f"inference::desc_dl_{tag}",
+            )
+        plt.close(single_fig)
 
 
 def _render_inference_categorical(
@@ -395,11 +409,6 @@ def _render_inference_numeric(df: pd.DataFrame, metric: str, metric_label: str, 
     fig.tight_layout()
     st.pyplot(fig)
     plt.close(fig)
-
-
-# ---------------------------------------------------------------------------
-# Render principal
-# ---------------------------------------------------------------------------
 
 
 def render_inference():
@@ -587,6 +596,14 @@ def render_inference():
         st.divider()
         st.markdown("**Datos de la métrica (primeras filas)**")
         st.dataframe(source_df.head(50), hide_index=True, width="stretch")
+        scope_tag = scope.replace(" ", "_").lower()
+        st.download_button(
+            "⬇ Descargar datos de la métrica (CSV)",
+            data=source_df.to_csv(index=False).encode("utf-8"),
+            file_name=f"{s.dataset_name}_{tema}_{active_group}_{scope_tag}_{metric}_datos.csv",
+            mime="text/csv",
+            key="inference::desc_data_dl",
+        )
 
     # =======================================================================
     # TAB 2 — Inferencia

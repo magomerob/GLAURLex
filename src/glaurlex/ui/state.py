@@ -1,21 +1,61 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Callable, Iterable, Optional, TypeVar
 
 import streamlit as st
 
-from glaurlex.config import DEFAULT_PROCESSED_DIR
+from glaurlex.config import (
+    DATA_ROOT,
+    DEFAULT_PROCESSED_DIR,
+    REMOTE_USER_HEADER,
+    REQUIRE_AUTH,
+    user_processed_dir,
+)
 from glaurlex.core.groups import ALL_GROUP
 from glaurlex.core.groups_store import load_groups
 from glaurlex.core.variables_store import load_variables
 
 T = TypeVar("T")
 
+_SAFE_USERNAME_RE = re.compile(r"[^A-Za-z0-9._-]+")
+
 
 @dataclass
 class AppState:
     dataset_name: Optional[str] = None
+    username: Optional[str] = None
+
+
+def _sanitize_username(raw: str) -> Optional[str]:
+    """! Normaliza el header de usuario en un nombre seguro para rutas.
+
+    Reemplaza cualquier carácter fuera de `[A-Za-z0-9._-]` por `_` y
+    descarta valores vacíos o reservados (`.`, `..`).
+    """
+    if not raw:
+        return None
+    cleaned = _SAFE_USERNAME_RE.sub("_", raw.strip()).strip("._-")
+    if not cleaned or cleaned in {".", ".."}:
+        return None
+    return cleaned[:64]
+
+
+def _remote_username() -> Optional[str]:
+    """! Lee el usuario autenticado de la cabecera inyectada por el proxy.
+
+    Devuelve `None` si la cabecera no está presente (p. ej. acceso local
+    sin Authelia).
+    """
+    try:
+        headers = st.context.headers  # type: ignore[attr-defined]
+    except Exception:
+        return None
+    if not headers:
+        return None
+    raw = headers.get(REMOTE_USER_HEADER) or headers.get(REMOTE_USER_HEADER.lower())
+    return _sanitize_username(raw) if raw else None
 
 
 def get_query_param(name: str) -> Optional[str]:
@@ -95,12 +135,66 @@ def ensure_state():
     if "dataset_loaded" not in st.session_state:
         st.session_state.dataset_loaded = False
 
+    _apply_user_scope(st.session_state["app_state"])
+
     return st.session_state["app_state"]
+
+
+def _apply_user_scope(app_state: "AppState") -> None:
+    """! Fija `processed_dir` al sandbox del usuario o detiene la página si
+    `REQUIRE_AUTH` está activo y no hay cabecera de autenticación."""
+    username = _remote_username()
+
+    if username:
+        app_state.username = username
+        scoped = str(user_processed_dir(username))
+        # Pin: las vistas leen primero esta clave y, en modo multiusuario,
+        # ignoramos cualquier override que venga de la URL/UI.
+        st.session_state["processed_dir"] = scoped
+        st.session_state["DatasetService::processed_dir"] = scoped
+        st.session_state["load_data::processed_dir"] = scoped
+        st.session_state["multi_tenant"] = True
+        user_processed_dir(username).mkdir(parents=True, exist_ok=True)
+        return
+
+    if REQUIRE_AUTH:
+        st.error(
+            "Acceso denegado: no se ha recibido la cabecera de autenticación."
+            " Inicia sesión a través del proxy."
+        )
+        st.stop()
+
+    st.session_state.setdefault("multi_tenant", False)
+    st.session_state.setdefault("processed_dir", str(DEFAULT_PROCESSED_DIR))
 
 
 def has_dataset_loaded() -> bool:
     s: AppState = st.session_state.get("app_state")
     return bool(s and s.dataset_name)
+
+
+def current_username() -> Optional[str]:
+    s: AppState = st.session_state.get("app_state")
+    return s.username if s else None
+
+
+def is_multi_tenant() -> bool:
+    return bool(st.session_state.get("multi_tenant"))
+
+
+__all__ = [
+    "AppState",
+    "DATA_ROOT",
+    "current_username",
+    "ensure_groups_loaded_for_dataset",
+    "ensure_state",
+    "ensure_variables_loaded_for_dataset",
+    "get_query_param",
+    "has_dataset_loaded",
+    "is_multi_tenant",
+    "set_query_param",
+    "sync_query_state",
+]
 
 
 def ensure_groups_loaded_for_dataset(dataset_name: str) -> None:
