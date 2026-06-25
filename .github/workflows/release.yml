@@ -37,7 +37,7 @@ jobs:
         run: poetry run pip install 'pyinstaller==6.11.1'
 
       - name: Build EXE (directory mode)
-        run: poetry run pyinstaller --name GLAURLex --collect-all streamlit --add-data "src/glaurlex/ui;glaurlex/ui" scripts/run_glaurlex.py
+        run: poetry run pyinstaller --name GLAURLex --collect-all streamlit --collect-all numpy --add-data "src/glaurlex/ui;glaurlex/ui" scripts/run_glaurlex.py
 
       - name: Smoke test built EXE
         run: |
@@ -88,7 +88,7 @@ jobs:
         run: poetry run pip install 'pyinstaller==6.11.1'
 
       - name: Build app (directory mode)
-        run: poetry run pyinstaller --name GLAURLex --collect-all streamlit --add-data "src/glaurlex/ui:glaurlex/ui" scripts/run_glaurlex.py
+        run: poetry run pyinstaller --name GLAURLex --collect-all streamlit --collect-all numpy --add-data "src/glaurlex/ui:glaurlex/ui" scripts/run_glaurlex.py
 
       - name: Smoke test built app
         run: |
@@ -122,7 +122,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Doxygen
-        run: sudo apt-get update && sudo apt-get install -y doxygen
+        run: sudo apt-get update && sudo apt-get install -y doxygen graphviz
 
       - name: Prepare Doxygen output dir
         run: mkdir -p build/doxygen

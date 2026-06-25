@@ -219,3 +219,5 @@ CLAUDE.md
 deploy/alloy/
 deploy/loki
 deploy/prometheus
+
+tmp/
