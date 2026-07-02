@@ -212,6 +212,9 @@ __marimo__/
 deploy/traefik/acme.json
 deploy/authelia/secrets/*
 !deploy/authelia/secrets/.gitignore
+# Datos de Authelia en producción (sqlite/sesiones/notificaciones) — carpeta,
+# no volumen. Ver AUTHELIA_DATA_DIR en .env.
+deploy/authelia/data/
 
 CLAUDE.md
 

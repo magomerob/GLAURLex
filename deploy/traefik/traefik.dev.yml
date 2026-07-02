@@ -14,14 +14,17 @@ api:
 entryPoints:
   web:
     address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
   websecure:
     address: ":443"
 
+# Sin provider `docker` (no montamos el socket). Routers/servicios por fichero.
 providers:
-  docker:
-    endpoint: "unix:///var/run/docker.sock"
-    exposedByDefault: false
-    network: glaurlex_proxy_dev
   file:
     directory: /etc/traefik/dynamic
     watch: true

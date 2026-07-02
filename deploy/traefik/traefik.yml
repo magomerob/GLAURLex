@@ -14,17 +14,22 @@ api:
 entryPoints:
   web:
     address: ":80"
+    # Redirección global HTTP -> HTTPS (antes un router `http-catchall`).
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
   websecure:
     address: ":443"
     http:
       tls:
         certResolver: letsencrypt
 
+# Sin provider `docker` (no montamos el socket). Todo el enrutado se declara
+# por fichero en /etc/traefik/dynamic (routers.yml + middlewares.yml).
 providers:
-  docker:
-    endpoint: "unix:///var/run/docker.sock"
-    exposedByDefault: false
-    network: glaurlex_proxy
   file:
     directory: /etc/traefik/dynamic
     watch: true
@@ -33,5 +38,6 @@ certificatesResolvers:
   letsencrypt:
     acme:
       email: "{{ env \"ACME_EMAIL\" }}"
+      caServer: "{{ env \"ACME_CA_SERVER\" }}"
       storage: /letsencrypt/acme.json
       tlsChallenge: {}

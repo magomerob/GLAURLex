@@ -1,0 +1,34 @@
+# Routers y servicios de Traefik para DESARROLLO (file provider). Sin socket
+# ni labels; hostnames `.localhost` fijos y TLS con el cert self-signed por
+# defecto (tls: {} sin certResolver).
+
+http:
+  routers:
+    glaurlex:
+      rule: "Host(`app.glaurlex.localhost`)"
+      entryPoints:
+        - websecure
+      service: glaurlex
+      middlewares:
+        - authelia
+      tls: {}
+
+    authelia:
+      rule: "Host(`auth.glaurlex.localhost`)"
+      entryPoints:
+        - websecure
+      service: authelia
+      tls: {}
+
+  services:
+    glaurlex:
+      loadBalancer:
+        servers:
+          - url: "http://glaurlex:8501"
+        sticky:
+          cookie: {}
+
+    authelia:
+      loadBalancer:
+        servers:
+          - url: "http://authelia:9091"

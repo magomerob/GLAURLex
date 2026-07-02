@@ -9,110 +9,140 @@ permissions:
   contents: read
 
 jobs:
-  build-windows-exe:
-    runs-on: windows-latest
-    timeout-minutes: 45
-    defaults:
-      run:
-        shell: bash
+  # build-windows-exe:
+  #   runs-on: windows-latest
+  #   timeout-minutes: 45
+  #   defaults:
+  #     run:
+  #       shell: bash
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v5
+  #       with:
+  #         python-version: "3.11"
+  #
+  #     - name: Install Poetry
+  #       run: python -m pip install --upgrade pip 'poetry>=1.8,<2'
+  #
+  #     - name: Configure Poetry (in-project venv)
+  #       run: poetry config virtualenvs.in-project true
+  #
+  #     - name: Install dependencies
+  #       run: poetry install --no-interaction
+  #
+  #     - name: Install PyInstaller
+  #       run: poetry run pip install 'pyinstaller==6.11.1'
+  #
+  #     - name: Build EXE (directory mode)
+  #       run: poetry run pyinstaller --name GLAURLex --collect-all streamlit --collect-all numpy --add-data "src/glaurlex/ui;glaurlex/ui" scripts/run_glaurlex.py
+  #
+  #     - name: Smoke test built EXE
+  #       run: |
+  #         ./dist/GLAURLex/GLAURLex.exe &
+  #         for i in $(seq 1 30); do
+  #           if curl -fsS http://localhost:8501/_stcore/health >/dev/null 2>&1; then
+  #             echo "Smoke test passed"
+  #             taskkill //F //IM GLAURLex.exe >/dev/null 2>&1 || true
+  #             exit 0
+  #           fi
+  #           sleep 2
+  #         done
+  #         taskkill //F //IM GLAURLex.exe >/dev/null 2>&1 || true
+  #         echo "Smoke test failed: server did not respond on :8501"
+  #         exit 1
+  #
+  #     - name: Zip dist directory
+  #       run: cd dist && 7z a GLAURLex-windows.zip GLAURLex/
+  #
+  #     - name: Upload EXE artifact
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: glaurlex-windows-exe
+  #         path: dist/GLAURLex-windows.zip
+
+  # build-macos-app:
+  #   runs-on: macos-latest
+  #   timeout-minutes: 45
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v5
+  #       with:
+  #         python-version: "3.11"
+  #
+  #     - name: Install Poetry
+  #       run: python -m pip install --upgrade pip 'poetry>=1.8,<2'
+  #
+  #     - name: Configure Poetry (in-project venv)
+  #       run: poetry config virtualenvs.in-project true
+  #
+  #     - name: Install dependencies
+  #       run: poetry install --no-interaction
+  #
+  #     - name: Install PyInstaller
+  #       run: poetry run pip install 'pyinstaller==6.11.1'
+  #
+  #     - name: Build app (directory mode)
+  #       run: poetry run pyinstaller --name GLAURLex --collect-all streamlit --collect-all numpy --add-data "src/glaurlex/ui:glaurlex/ui" scripts/run_glaurlex.py
+  #
+  #     - name: Smoke test built app
+  #       run: |
+  #         ./dist/GLAURLex/GLAURLex &
+  #         PID=$!
+  #         trap "kill $PID 2>/dev/null || true" EXIT
+  #         for i in $(seq 1 30); do
+  #           if curl -fsS http://localhost:8501/_stcore/health >/dev/null 2>&1; then
+  #             echo "Smoke test passed"
+  #             exit 0
+  #           fi
+  #           sleep 2
+  #         done
+  #         echo "Smoke test failed: server did not respond on :8501"
+  #         exit 1
+  #
+  #     - name: Zip dist directory
+  #       run: cd dist && zip -r GLAURLex-macos.zip GLAURLex/
+  #
+  #     - name: Upload macOS artifact
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: glaurlex-macos-app
+  #         path: dist/GLAURLex-macos.zip
+
+  build-docker-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
         with:
-          python-version: "3.11"
+          context: .
+          file: Dockerfile
+          push: false
+          load: true
+          tags: glaurlex:${{ github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      - name: Install Poetry
-        run: python -m pip install --upgrade pip 'poetry>=1.8,<2'
+      - name: Save Docker image tarball
+        run: docker save glaurlex:${{ github.ref_name }} | gzip > GLAURLex-docker-image.tar.gz
 
-      - name: Configure Poetry (in-project venv)
-        run: poetry config virtualenvs.in-project true
-
-      - name: Install dependencies
-        run: poetry install --no-interaction
-
-      - name: Install PyInstaller
-        run: poetry run pip install 'pyinstaller==6.11.1'
-
-      - name: Build EXE (directory mode)
-        run: poetry run pyinstaller --name GLAURLex --collect-all streamlit --collect-all numpy --add-data "src/glaurlex/ui;glaurlex/ui" scripts/run_glaurlex.py
-
-      - name: Smoke test built EXE
-        run: |
-          ./dist/GLAURLex/GLAURLex.exe &
-          for i in $(seq 1 30); do
-            if curl -fsS http://localhost:8501/_stcore/health >/dev/null 2>&1; then
-              echo "Smoke test passed"
-              taskkill //F //IM GLAURLex.exe >/dev/null 2>&1 || true
-              exit 0
-            fi
-            sleep 2
-          done
-          taskkill //F //IM GLAURLex.exe >/dev/null 2>&1 || true
-          echo "Smoke test failed: server did not respond on :8501"
-          exit 1
-
-      - name: Zip dist directory
-        run: cd dist && 7z a GLAURLex-windows.zip GLAURLex/
-
-      - name: Upload EXE artifact
+      - name: Upload Docker image artifact
         uses: actions/upload-artifact@v4
         with:
-          name: glaurlex-windows-exe
-          path: dist/GLAURLex-windows.zip
-
-  build-macos-app:
-    runs-on: macos-latest
-    timeout-minutes: 45
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install Poetry
-        run: python -m pip install --upgrade pip 'poetry>=1.8,<2'
-
-      - name: Configure Poetry (in-project venv)
-        run: poetry config virtualenvs.in-project true
-
-      - name: Install dependencies
-        run: poetry install --no-interaction
-
-      - name: Install PyInstaller
-        run: poetry run pip install 'pyinstaller==6.11.1'
-
-      - name: Build app (directory mode)
-        run: poetry run pyinstaller --name GLAURLex --collect-all streamlit --collect-all numpy --add-data "src/glaurlex/ui:glaurlex/ui" scripts/run_glaurlex.py
-
-      - name: Smoke test built app
-        run: |
-          ./dist/GLAURLex/GLAURLex &
-          PID=$!
-          trap "kill $PID 2>/dev/null || true" EXIT
-          for i in $(seq 1 30); do
-            if curl -fsS http://localhost:8501/_stcore/health >/dev/null 2>&1; then
-              echo "Smoke test passed"
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "Smoke test failed: server did not respond on :8501"
-          exit 1
-
-      - name: Zip dist directory
-        run: cd dist && zip -r GLAURLex-macos.zip GLAURLex/
-
-      - name: Upload macOS artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: glaurlex-macos-app
-          path: dist/GLAURLex-macos.zip
+          name: glaurlex-docker-image
+          path: GLAURLex-docker-image.tar.gz
 
   build-docs:
     runs-on: ubuntu-latest
@@ -144,7 +174,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [build-windows-exe, build-macos-app, build-docs]
+    needs: [build-docker-image, build-docs]
     permissions:
       contents: write
     steps:
@@ -154,8 +184,7 @@ jobs:
       - name: Generate SHA256SUMS
         run: |
           sha256sum \
-            glaurlex-windows-exe/GLAURLex-windows.zip \
-            glaurlex-macos-app/GLAURLex-macos.zip \
+            glaurlex-docker-image/GLAURLex-docker-image.tar.gz \
             doxygen-html/doxygen-html.zip \
             > SHA256SUMS
           cat SHA256SUMS
@@ -168,7 +197,6 @@ jobs:
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
-            glaurlex-windows-exe/GLAURLex-windows.zip
-            glaurlex-macos-app/GLAURLex-macos.zip
+            glaurlex-docker-image/GLAURLex-docker-image.tar.gz
             doxygen-html/doxygen-html.zip
             SHA256SUMS

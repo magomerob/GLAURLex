@@ -36,6 +36,10 @@ for s in jwt_secret session_secret storage_encryption_key; do
   fi
 done
 
+# Carpeta de datos de Authelia (sqlite/sesiones). Authelia corre como root en
+# dev, así que no necesita ajuste de ownership; sólo debe existir.
+mkdir -p var/authelia-data
+
 mkdir -p var/dev-data
 # Aseguramos ownership coherente con el UID del contenedor. Si docker
 # levantó el bind mount antes que nosotros, la carpeta puede haber quedado

@@ -33,6 +33,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     STREAMLIT_SERVER_HEADLESS=true \
     STREAMLIT_BROWSER_GATHER_USAGE_STATS=false \
+    STREAMLIT_SERVER_ADDRESS=0.0.0.0 \
+    STREAMLIT_SERVER_PORT=8501 \
     GLAURLEX_DATA_DIR=/data
 
 WORKDIR /app
@@ -56,9 +58,9 @@ RUN set -eux; \
 
 USER appuser
 
-VOLUME ["/data"]
+# Sin VOLUME: /data se provee por bind mount desde el host (carpeta, no volumen).
+# La dirección/puerto los toma Streamlit de STREAMLIT_SERVER_ADDRESS/PORT, que
+# docker-compose sobreescribe con ${APP_PORT}.
 EXPOSE 8501
 
-CMD ["streamlit", "run", "src/glaurlex/ui/app.py", \
-     "--server.address=0.0.0.0", \
-     "--server.port=8501"]
+CMD ["streamlit", "run", "src/glaurlex/ui/app.py"]

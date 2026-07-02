@@ -4,8 +4,12 @@
 #   - Hostnames `*.localhost` (requieren /etc/hosts).
 #   - Sin Let's Encrypt: Traefik usa su cert autogenerado (warning del navegador).
 #   - Datos por usuario bajo ./var/dev-data/<user>/processed.
+#   - Datos de Authelia bajo ./var/authelia-data (carpeta, no volumen).
 #   - Usuarios y secretos pre-cargados via scripts/dev-up.sh (alice/changeme).
 #   - Dashboard de Traefik expuesto en http://127.0.0.1:8080.
+#
+# Igual que prod: NO monta el socket de Docker; el enrutado se declara por
+# fichero en deploy/traefik/dynamic-dev/ (file provider).
 #
 # Uso:
 #   ./scripts/dev-up.sh           # primera vez (genera secretos + arranca)
@@ -18,7 +22,7 @@ name: glaurlex-dev
 
 services:
   traefik:
-    image: traefik:v3.7.1
+    image: ${TRAEFIK_IMAGE:-traefik:v3.7.1}
     restart: unless-stopped
     command:
       - --configFile=/etc/traefik/traefik.yml
@@ -27,14 +31,16 @@ services:
       - "127.0.0.1:443:443"
       - "127.0.0.1:8080:8080"   # dashboard
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./deploy/traefik/traefik.dev.yml:/etc/traefik/traefik.yml:ro
       - ./deploy/traefik/dynamic-dev:/etc/traefik/dynamic:ro
     networks:
       - proxy
+    depends_on:
+      - authelia
+      - glaurlex
 
   authelia:
-    image: authelia/authelia:4.39.20
+    image: ${AUTHELIA_IMAGE:-authelia/authelia:4.39.20}
     restart: unless-stopped
     expose:
       - "9091"
@@ -47,15 +53,9 @@ services:
       - ./deploy/authelia/configuration.dev.yml:/config/configuration.yml:ro
       - ./deploy/authelia/users_database.dev.yml:/config/users_database.yml:ro
       - ./deploy/authelia/secrets:/secrets:ro
-      - authelia_dev_data:/data
+      - ./var/authelia-data:/data
     networks:
       - proxy
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.authelia.rule=Host(`auth.glaurlex.localhost`)
-      - traefik.http.routers.authelia.entrypoints=websecure
-      - traefik.http.routers.authelia.tls=true
-      - traefik.http.services.authelia.loadbalancer.server.port=9091
 
   glaurlex:
     build:
@@ -81,18 +81,7 @@ services:
       - proxy
     depends_on:
       - authelia
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.glaurlex.rule=Host(`app.glaurlex.localhost`)
-      - traefik.http.routers.glaurlex.entrypoints=websecure
-      - traefik.http.routers.glaurlex.tls=true
-      - traefik.http.routers.glaurlex.middlewares=authelia@file
-      - traefik.http.services.glaurlex.loadbalancer.server.port=8501
-      - traefik.http.services.glaurlex.loadbalancer.sticky=true
 
 networks:
   proxy:
     name: glaurlex_proxy_dev
-
-volumes:
-  authelia_dev_data:

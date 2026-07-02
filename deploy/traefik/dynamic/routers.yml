@@ -1,0 +1,51 @@
+# Routers y servicios de Traefik (file provider). Reemplaza a los labels de
+# Docker: como no montamos el socket, Traefik no descubre contenedores; aquí
+# declaramos a mano cada ruta. Los backends se resuelven por DNS de Docker
+# (nombre de servicio) sobre la red `proxy`. Valores desde `.env` vía plantilla.
+
+http:
+  routers:
+    # App GLAURLex — exige sesión válida (middleware authelia).
+    glaurlex:
+      rule: "Host(`{{ env \"APP_HOST\" }}`)"
+      entryPoints:
+        - websecure
+      service: glaurlex
+      middlewares:
+        - authelia
+      tls:
+        certResolver: letsencrypt
+
+    # Portal de Authelia.
+    authelia:
+      rule: "Host(`{{ env \"AUTH_HOST\" }}`)"
+      entryPoints:
+        - websecure
+      service: authelia
+      tls:
+        certResolver: letsencrypt
+
+    # Dashboard de Traefik (protegido por Authelia).
+    dashboard:
+      rule: "Host(`{{ env \"DASHBOARD_HOST\" }}`)"
+      entryPoints:
+        - websecure
+      service: api@internal
+      middlewares:
+        - authelia
+      tls:
+        certResolver: letsencrypt
+
+  services:
+    glaurlex:
+      loadBalancer:
+        servers:
+          - url: "http://glaurlex:{{ env \"APP_PORT\" }}"
+        # Streamlit usa websockets en /_stcore/stream: sesión pegajosa por cookie.
+        sticky:
+          cookie: {}
+
+    authelia:
+      loadBalancer:
+        servers:
+          - url: "http://authelia:{{ env \"AUTH_PORT\" }}"
