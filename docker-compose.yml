@@ -1,11 +1,14 @@
 # GLAURLex stack: Traefik (reverse proxy + ACME) + Authelia (auth) + app.
 #
-# Configura `.env` antes de levantar (ver `.env.example`).
+# Configura `.env` antes de levantar (ver `.env.example`). Todo lo editable
+# (imágenes, hosts, puertos, rutas) vive en `.env`.
+#
 # Primera vez en el servidor:
 #   1. cp .env.example .env  &&  editar valores
-#   2. touch deploy/traefik/acme.json && chmod 600 deploy/traefik/acme.json
-#   3. editar deploy/authelia/users_database.yml (hashear contraseñas)
-#   4. docker compose up -d
+#   2. touch ${ACME_STORAGE_FILE} && chmod 600 ${ACME_STORAGE_FILE}
+#   3. mkdir -p ${AUTHELIA_DATA_DIR} ${HOST_DATA_DIR}
+#   4. editar deploy/authelia/users_database.yml (hashear contraseñas)
+#   5. docker compose up -d
 #
 # Los datos de cada usuario viven en ${HOST_DATA_DIR}/<username>/processed
 # y se montan en /data dentro del contenedor de la app. El contenedor corre
@@ -13,45 +16,42 @@
 
 services:
   traefik:
-    image: traefik:v3.7.1
+    image: ${TRAEFIK_IMAGE}
     restart: unless-stopped
     command:
       - --configFile=/etc/traefik/traefik.yml
     ports:
-      - "80:80"
-      - "443:443"
+      - "${HTTP_PORT}:80"
+      - "${HTTPS_PORT}:443"
     environment:
+      # Consumidas por las plantillas de traefik.yml y deploy/traefik/dynamic/*.
+      - APP_HOST=${APP_HOST}
+      - AUTH_HOST=${AUTH_HOST}
+      - DASHBOARD_HOST=${DASHBOARD_HOST}
+      - APP_PORT=${APP_PORT}
+      - AUTH_PORT=${AUTH_PORT}
       - ACME_EMAIL=${ACME_EMAIL}
+      - ACME_CA_SERVER=${ACME_CA_SERVER}
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./deploy/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./deploy/traefik/dynamic:/etc/traefik/dynamic:ro
-      - ./deploy/traefik/acme.json:/letsencrypt/acme.json
+      - ${ACME_STORAGE_FILE}:/letsencrypt/acme.json
     networks:
       - proxy
-    labels:
-      - traefik.enable=true
-      # Redirección HTTP -> HTTPS global
-      - traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)
-      - traefik.http.routers.http-catchall.entrypoints=web
-      - traefik.http.routers.http-catchall.middlewares=https-redirect@file
-      # Dashboard
-      - traefik.http.routers.dashboard.rule=Host(`traefik.glaurlex.mgrobres.es`)
-      - traefik.http.routers.dashboard.entrypoints=websecure
-      - traefik.http.routers.dashboard.tls=true
-      - traefik.http.routers.dashboard.tls.certresolver=letsencrypt
-      - traefik.http.routers.dashboard.service=api@internal
-      - traefik.http.routers.dashboard.middlewares=authelia@file
+    depends_on:
+      - authelia
+      - glaurlex
 
   authelia:
-    image: authelia/authelia:4.39.20
+    image: ${AUTHELIA_IMAGE}
     restart: unless-stopped
     expose:
-      - "9091"
+      - "${AUTH_PORT}"
     environment:
       - X_AUTHELIA_CONFIG_FILTERS=template
       - AUTH_HOST=${AUTH_HOST}
       - APP_HOST=${APP_HOST}
+      - DASHBOARD_HOST=${DASHBOARD_HOST}
       - COOKIE_DOMAIN=${COOKIE_DOMAIN}
       - TZ=${TZ:-UTC}
       - AUTHELIA_JWT_SECRET_FILE=/secrets/jwt_secret
@@ -60,16 +60,9 @@ services:
     volumes:
       - ./deploy/authelia:/config
       - ./deploy/authelia/secrets:/secrets
-      - authelia_data:/data
+      - ${AUTHELIA_DATA_DIR}:/data
     networks:
       - proxy
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.authelia.rule=Host(`${AUTH_HOST}`)
-      - traefik.http.routers.authelia.entrypoints=websecure
-      - traefik.http.routers.authelia.tls=true
-      - traefik.http.routers.authelia.tls.certresolver=letsencrypt
-      - traefik.http.services.authelia.loadbalancer.server.port=9091
 
   glaurlex:
     build:
@@ -78,17 +71,18 @@ services:
       args:
         PUID: ${PUID:-1000}
         PGID: ${PGID:-1000}
-    image: glaurlex:latest
+    image: ${GLAURLEX_IMAGE}
     restart: unless-stopped
     user: "${PUID:-1000}:${PGID:-1000}"
     expose:
-      - "8501"
+      - "${APP_PORT}"
     environment:
       - GLAURLEX_DATA_DIR=/data
-      - GLAURLEX_REMOTE_USER_HEADER=Remote-User
-      - GLAURLEX_REQUIRE_AUTH=1
+      - GLAURLEX_REMOTE_USER_HEADER=${GLAURLEX_REMOTE_USER_HEADER}
+      - GLAURLEX_REQUIRE_AUTH=${GLAURLEX_REQUIRE_AUTH}
       - GLAURLEX_LOGOUT_URL=https://${AUTH_HOST}/logout
-      - APP_ENV=prod
+      - STREAMLIT_SERVER_PORT=${APP_PORT}
+      - APP_ENV=${APP_ENV}
     volumes:
       # Raíz por-usuario en el host. Cada subcarpeta es <username>/processed.
       - ${HOST_DATA_DIR}:/data
@@ -96,20 +90,7 @@ services:
       - proxy
     depends_on:
       - authelia
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.glaurlex.rule=Host(`${APP_HOST}`)
-      - traefik.http.routers.glaurlex.entrypoints=websecure
-      - traefik.http.routers.glaurlex.tls=true
-      - traefik.http.routers.glaurlex.tls.certresolver=letsencrypt
-      - traefik.http.routers.glaurlex.middlewares=authelia@file
-      - traefik.http.services.glaurlex.loadbalancer.server.port=8501
-      # Streamlit usa websockets en /_stcore/stream
-      - traefik.http.services.glaurlex.loadbalancer.sticky=true
 
 networks:
   proxy:
     name: glaurlex_proxy
-
-volumes:
-  authelia_data:

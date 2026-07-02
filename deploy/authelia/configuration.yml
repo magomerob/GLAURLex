@@ -42,7 +42,7 @@ access_control:
     - domain: '{{ env "APP_HOST" }}'
       policy: one_factor
     # Dashboard
-    - domain: 'traefik.glaurlex.mgrobres.es'
+    - domain: '{{ env "DASHBOARD_HOST" }}'
       subject:
         - 'group:admins'
       policy: one_factor

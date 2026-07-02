@@ -8,8 +8,8 @@ bajo `<HOST_DATA_DIR>/<username>/processed`.
 ## Pre-requisitos
 
 - Un servidor con Docker y `docker compose`.
-- DNS apuntando `APP_HOST` y `AUTH_HOST` a la IP del servidor (puertos 80
-  y 443 abiertos hacia fuera para que ACME funcione).
+- DNS apuntando `APP_HOST`, `AUTH_HOST` y `DASHBOARD_HOST` a la IP del servidor
+  (puertos 80 y 443 abiertos hacia fuera para que ACME funcione).
 - Un usuario en el host con UID/GID conocidos para correr el contenedor
   (NO root). Por defecto `1000:1000`.
 
@@ -21,8 +21,9 @@ bajo `<HOST_DATA_DIR>/<username>/processed`.
    $EDITOR .env
    ```
 
-2. **Prepara el almacén de certificados** (debe existir y ser legible sólo
-   por root porque Traefik corre como root y comprueba los permisos):
+2. **Prepara el almacén de certificados** (la ruta la fija `ACME_STORAGE_FILE`
+   en `.env`; debe existir y ser legible sólo por root porque Traefik corre como
+   root y comprueba los permisos):
    ```bash
    touch deploy/traefik/acme.json
    chmod 600 deploy/traefik/acme.json
@@ -47,10 +48,13 @@ bajo `<HOST_DATA_DIR>/<username>/processed`.
    nombre del sandbox de datos en `<HOST_DATA_DIR>/<clave>/processed`, por eso
    el script la restringe a `[a-z0-9._-]`.
 
-5. **Prepara el directorio de datos en el host** con el UID/GID correctos:
+5. **Prepara las carpetas de datos en el host** (rutas en `.env`). La de la app
+   necesita el UID/GID del contenedor; la de Authelia la crea `root` (Authelia
+   corre como root), basta con que exista:
    ```bash
-   mkdir -p ./var/data        # ajustado a HOST_DATA_DIR en .env
+   mkdir -p ./var/data        # HOST_DATA_DIR
    sudo chown -R 1000:1000 ./var/data
+   mkdir -p ./deploy/authelia/data   # AUTHELIA_DATA_DIR
    ```
 
 6. **Arranca**:
@@ -83,7 +87,7 @@ sólo verás los datasets de tu sandbox.
   `docker compose restart authelia`. El sandbox `<HOST_DATA_DIR>/<user>/processed`
   se crea automáticamente al primer login.
 - **Renovación TLS**: la maneja Traefik automáticamente.
-- **Backups**: basta con copiar `HOST_DATA_DIR` y el volumen `authelia_data`
-  (sesiones/regulación).
+- **Backups**: basta con copiar las carpetas `HOST_DATA_DIR` y
+  `AUTHELIA_DATA_DIR` (sesiones/regulación); ya no hay volumen con nombre.
 - **Rotar secretos de Authelia**: regenera los ficheros en
   `deploy/authelia/secrets/` y reinicia Authelia (invalida sesiones).
