@@ -6,7 +6,7 @@ http:
     # st.context.headers["Remote-User"]).
     authelia:
       forwardAuth:
-        address: "http://authelia:{{ env \"AUTH_PORT\" }}/api/authz/forward-auth"
+        address: 'http://authelia:{{ env "AUTH_PORT" }}/api/authz/forward-auth'
         trustForwardHeader: true
         authResponseHeaders:
           - Remote-User
@@ -18,7 +18,7 @@ http:
     # (útil si añades APIs en el futuro).
     authelia-basic:
       forwardAuth:
-        address: "http://authelia:{{ env \"AUTH_PORT\" }}/api/authz/auth-request"
+        address: 'http://authelia:{{ env "AUTH_PORT" }}/api/authz/auth-request'
         trustForwardHeader: true
         authResponseHeaders:
           - Remote-User

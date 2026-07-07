@@ -37,7 +37,6 @@ providers:
 certificatesResolvers:
   letsencrypt:
     acme:
-      email: "{{ env \"ACME_EMAIL\" }}"
-      caServer: "{{ env \"ACME_CA_SERVER\" }}"
+      caServer: https://acme-v02.api.letsencrypt.org/directory
       storage: /letsencrypt/acme.json
       tlsChallenge: {}

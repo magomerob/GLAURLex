@@ -7,7 +7,7 @@ http:
   routers:
     # App GLAURLex — exige sesión válida (middleware authelia).
     glaurlex:
-      rule: "Host(`{{ env \"APP_HOST\" }}`)"
+      rule: 'Host(`{{ env "APP_HOST" }}`)'
       entryPoints:
         - websecure
       service: glaurlex
@@ -18,7 +18,7 @@ http:
 
     # Portal de Authelia.
     authelia:
-      rule: "Host(`{{ env \"AUTH_HOST\" }}`)"
+      rule: 'Host(`{{ env "AUTH_HOST" }}`)'
       entryPoints:
         - websecure
       service: authelia
@@ -27,7 +27,7 @@ http:
 
     # Dashboard de Traefik (protegido por Authelia).
     dashboard:
-      rule: "Host(`{{ env \"DASHBOARD_HOST\" }}`)"
+      rule: 'Host(`{{ env "DASHBOARD_HOST" }}`)'
       entryPoints:
         - websecure
       service: api@internal
@@ -40,7 +40,7 @@ http:
     glaurlex:
       loadBalancer:
         servers:
-          - url: "http://glaurlex:{{ env \"APP_PORT\" }}"
+          - url: 'http://glaurlex:{{ env "APP_PORT" }}'
         # Streamlit usa websockets en /_stcore/stream: sesión pegajosa por cookie.
         sticky:
           cookie: {}
@@ -48,4 +48,4 @@ http:
     authelia:
       loadBalancer:
         servers:
-          - url: "http://authelia:{{ env \"AUTH_PORT\" }}"
+          - url: 'http://authelia:{{ env "AUTH_PORT" }}'

@@ -31,7 +31,8 @@ services:
       - APP_PORT=${APP_PORT}
       - AUTH_PORT=${AUTH_PORT}
       - ACME_EMAIL=${ACME_EMAIL}
-      - ACME_CA_SERVER=${ACME_CA_SERVER}
+      - TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL=${ACME_EMAIL}
+
     volumes:
       - ./deploy/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./deploy/traefik/dynamic:/etc/traefik/dynamic:ro
