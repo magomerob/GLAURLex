@@ -15,6 +15,7 @@ from glaurlex.ui.state import (
 from glaurlex.ui.views.charts import render_charts
 from glaurlex.ui.views.graphs import render_graphs
 from glaurlex.ui.views.grouping import render_grouping
+from glaurlex.ui.views.home import LOGO_WORDMARK_PATH, render_home
 from glaurlex.ui.views.inference import render_inference
 from glaurlex.ui.views.informant_stats import render_informant_stats
 from glaurlex.ui.views.load_data import render_load_data
@@ -45,6 +46,11 @@ def main():
         unsafe_allow_html=True,
     )
 
+    # Logo de la aplicación en la parte superior de la barra lateral.
+    if LOGO_WORDMARK_PATH.exists():
+        st.sidebar.image(str(LOGO_WORDMARK_PATH), width="stretch")
+        st.sidebar.divider()
+
     # Sidebar navigation (una sola vez -> evita duplicados)
     if is_multi_tenant():
         user = current_username() or "?"
@@ -54,6 +60,7 @@ def main():
     # Si no hay dataset, bloqueamos visualización y grafos en la UI
     if has_dataset_loaded():
         options = [
+            "Inicio",
             "Carga de datos",
             "Variables",
             "Grupos",
@@ -65,6 +72,7 @@ def main():
         ]
     else:
         options = [
+            "Inicio",
             "Carga de datos",
             "Variables (bloqueado)",
             "Grupos (bloqueado)",
@@ -76,6 +84,7 @@ def main():
         ]
 
     page_token_to_prefix = {
+        "home": "Inicio",
         "load": "Carga de datos",
         "variables": "Variables",
         "groups": "Grupos",
@@ -90,14 +99,20 @@ def main():
     requested_token = sync_query_state(
         key="app::page_token",
         param="page",
-        default="load",
+        default="home",
         allowed_values=page_token_to_prefix.keys(),
     )
-    requested_prefix = page_token_to_prefix.get(requested_token, "Carga de datos")
+    requested_prefix = page_token_to_prefix.get(requested_token, "Inicio")
     default_page = next((opt for opt in options if opt.startswith(requested_prefix)), options[0])
 
     if "nav_page" not in st.session_state or st.session_state["nav_page"] not in options:
         st.session_state["nav_page"] = default_page
+
+    # Navegación programática (p. ej. botón "Comenzar" de la landing). Se aplica
+    # antes de instanciar el radio para poder fijar su clave de sesión.
+    pending_nav = st.session_state.pop("_pending_nav", None)
+    if pending_nav in options:
+        st.session_state["nav_page"] = pending_nav
 
     page = st.sidebar.radio(
         "Ir a:",
@@ -112,13 +127,17 @@ def main():
     sync_query_state(
         key="app::page_token",
         param="page",
-        default="load",
+        default="home",
         allowed_values=page_token_to_prefix.keys(),
     )
 
     if is_multi_tenant() and LOGOUT_URL:
         st.sidebar.markdown("<div style='flex:1 1 auto'></div>", unsafe_allow_html=True)
         st.sidebar.link_button("Cerrar Sesión", LOGOUT_URL, help="Cerrar sesión")
+
+    if page.startswith("Inicio"):
+        render_home()
+        return
 
     if page.startswith("Carga de datos"):
         render_load_data()

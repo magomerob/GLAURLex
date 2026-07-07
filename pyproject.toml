@@ -2,7 +2,7 @@
 name = "glaurlex"
 version = "0.1.0"
 description = ""
-authors = ["magomerob <mark.mg02@gmail.com>"]
+authors = ["magomerob <magomerob@unirioja.es>"]
 readme = "README.md"
 packages = [{ include = "glaurlex", from = "src" }]
 
