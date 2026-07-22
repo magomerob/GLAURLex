@@ -217,6 +217,7 @@ deploy/authelia/secrets/*
 deploy/authelia/data/
 
 CLAUDE.md
+.claude/
 
 # Telemetría (solo en Oracle de momento)
 deploy/alloy/
