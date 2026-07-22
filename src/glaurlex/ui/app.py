@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import html
+
 import streamlit as st
 
 from glaurlex.config import LOGOUT_URL
@@ -133,7 +135,27 @@ def main():
 
     if is_multi_tenant() and LOGOUT_URL:
         st.sidebar.markdown("<div style='flex:1 1 auto'></div>", unsafe_allow_html=True)
-        st.sidebar.link_button("Cerrar Sesión", LOGOUT_URL, help="Cerrar sesión")
+        # `st.link_button` fuerza target="_blank", así que abriría el cierre de
+        # sesión en una pestaña nueva y dejaría la original con la sesión activa.
+        # Usamos un enlace que navega en la propia pestaña (target="_self").
+        safe_logout_url = html.escape(LOGOUT_URL, quote=True)
+        st.sidebar.markdown(
+            f"""
+            <a href="{safe_logout_url}" target="_self" title="Cerrar sesión" style="
+                display:block;
+                width:100%;
+                box-sizing:border-box;
+                text-align:center;
+                padding:0.5rem 1rem;
+                border:1px solid rgba(128,128,128,0.4);
+                border-radius:0.5rem;
+                text-decoration:none;
+                color:inherit;
+                font-weight:600;
+            ">Cerrar Sesión</a>
+            """,
+            unsafe_allow_html=True,
+        )
 
     if page.startswith("Inicio"):
         render_home()
