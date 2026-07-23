@@ -4,6 +4,7 @@ Servicios para procesar y cargar datasets en formato parquet.
 
 from __future__ import annotations
 
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -155,6 +156,21 @@ class DatasetService:
 
         self._validate_processed_dir(out_dir)
         return dataset_name
+
+    def delete_processed(self, name: str) -> None:
+        """! Elimina de disco un dataset procesado.
+
+        @param name Nombre del dataset.
+        @exception ValueError Si `name` intenta salir del directorio de procesados.
+        @exception FileNotFoundError Si el dataset no existe o no es válido.
+        """
+        root = self.get_processed_path(name)
+        # Seguridad: `name` debe resolver a un hijo directo del directorio base;
+        # evita path traversal (p. ej. `../otro`) en una operación destructiva.
+        if root.parent != self.processed_dir.resolve():
+            raise ValueError(f"Nombre de dataset no válido: {name!r}")
+        self._validate_processed_dir(root)
+        shutil.rmtree(root)
 
     def load_processed(self, name: str) -> ProcessedDataset:
         """! Carga informantes y todos los temas de un dataset procesado.

@@ -8,6 +8,13 @@ import streamlit as st
 
 from glaurlex.config import DEFAULT_PROCESSED_DIR
 from glaurlex.core.dataset_service import DatasetService
+from glaurlex.core.example_data import (
+    EXAMPLE_SALAMANCA_FILENAME,
+    EXAMPLE_XLSX_FILENAME,
+    build_example_salamanca,
+    build_example_xlsx,
+    salamanca_stimulus_map,
+)
 from glaurlex.ui.state import (
     current_username,
     ensure_state,
@@ -18,6 +25,54 @@ from glaurlex.ui.state import (
 @st.cache_resource
 def get_dataset_service(processed_dir: str) -> DatasetService:
     return DatasetService(processed_dir)
+
+
+@st.cache_data(show_spinner=False)
+def _example_xlsx_bytes() -> bytes:
+    return build_example_xlsx()
+
+
+@st.cache_data(show_spinner=False)
+def _example_salamanca_bytes() -> bytes:
+    return build_example_salamanca().encode("utf-8")
+
+
+def _render_example_downloads() -> None:
+    """! Muestra los datasets de ejemplo descargables (XLSX y Salamanca TXT)."""
+    with st.expander("¿No tienes datos? Descarga un ejemplo"):
+        st.caption(
+            "Dos datasets de ejemplo con la misma estructura que espera la app. "
+            "Descárgalos, ábrelos como plantilla y súbelos en el formato "
+            "correspondiente."
+        )
+        c1, c2 = st.columns(2)
+        with c1:
+            st.download_button(
+                "Ejemplo XLSX",
+                data=_example_xlsx_bytes(),
+                file_name=EXAMPLE_XLSX_FILENAME,
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+            )
+            st.caption("Hojas `Informantes`, `Variables` y un tema por hoja.")
+        with c2:
+            st.download_button(
+                "Ejemplo Salamanca (.txt)",
+                data=_example_salamanca_bytes(),
+                file_name=EXAMPLE_SALAMANCA_FILENAME,
+                mime="text/plain",
+                use_container_width=True,
+            )
+            st.caption("Formato `EXPID INDIV TEMA palabra1, palabra2, ...`.")
+
+        map_hint = "\n".join(
+            f"{code}={stimulus}" for code, stimulus in salamanca_stimulus_map().items()
+        )
+        st.caption(
+            "Para el ejemplo Salamanca, puedes usar este diccionario "
+            "código → estímulo al procesar y así nombrar los temas:"
+        )
+        st.code(map_hint, language="text")
 
 
 @st.cache_data(show_spinner=False)
@@ -80,6 +135,8 @@ def render_load_data():
 
     with col1:
         st.subheader("A) Subir archivo y procesar")
+
+        _render_example_downloads()
 
         input_format = st.selectbox(
             "Formato de entrada",
@@ -181,6 +238,30 @@ def render_load_data():
                 set_query_param("dataset", choice)
                 st.success(f"Dataset activo: **{choice}**")
                 st.rerun()
+
+            with st.expander("Eliminar dataset"):
+                st.warning(
+                    f"Se eliminará **{choice}** del disco de forma permanente. "
+                    "Esta acción no se puede deshacer."
+                )
+                # La `key` incluye el nombre elegido: al cambiar de dataset en el
+                # selectbox, la confirmación se reinicia automáticamente.
+                confirm_delete = st.checkbox(
+                    "Sí, quiero eliminar este dataset",
+                    key=f"confirm_delete::{choice}",
+                )
+                if st.button("Eliminar definitivamente", disabled=not confirm_delete):
+                    try:
+                        service.delete_processed(choice)
+                        # Invalida el resumen cacheado del dataset borrado.
+                        _dataset_summary.clear()
+                        if s.dataset_name == choice:
+                            s.dataset_name = None
+                            set_query_param("dataset", None)
+                        st.success(f"Dataset «{choice}» eliminado.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"No se pudo eliminar «{choice}»: {e}")
     st.divider()
 
     # Estado actual
@@ -202,11 +283,13 @@ def render_load_data():
         with st.expander("Ver temas"):
             st.write(temas)
 
-        # No es necesario
-        # if st.button("Descargar dataset (desactivar)"):
-        #    s.dataset_name = None
-        #    set_query_param("dataset", None)
-        #    st.info("Dataset desactivado. Visualización y Grafos quedan bloqueados.")
-        #    st.rerun()
+        if st.button(
+            "Desactivar dataset",
+            help="Quita el dataset de la sesión actual. No borra los archivos del disco.",
+        ):
+            s.dataset_name = None
+            set_query_param("dataset", None)
+            st.info("Dataset desactivado. El resto de secciones quedan bloqueadas.")
+            st.rerun()
     else:
         st.write("No hay dataset activo.")

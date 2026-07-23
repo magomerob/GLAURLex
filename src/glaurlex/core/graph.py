@@ -283,8 +283,8 @@ def small_world_indices(
                 eta = avg_per_iteration * (n - i)
                 status_cb(f"Iteración {i + 1}/{n}. ETA estimado: {_format_eta(eta)}")
 
-        lat = nx.algorithms.smallworld.lattice_reference(graph, niter=5, seed=42+i)
-        rand = nx.algorithms.smallworld.random_reference(graph, niter=10, seed=42+i)
+        lat = nx.algorithms.smallworld.lattice_reference(graph, niter=5, seed=42 + i)
+        rand = nx.algorithms.smallworld.random_reference(graph, niter=10, seed=42 + i)
 
         Cl = max(Cl, nx.average_clustering(lat))
         Cr += nx.average_clustering(rand) / n

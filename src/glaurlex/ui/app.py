@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import html
+
 import streamlit as st
 
 from glaurlex.config import LOGOUT_URL
@@ -57,31 +59,22 @@ def main():
         st.sidebar.success(f"Sesión: **{user}**")
     st.sidebar.header("Navegación")
 
-    # Si no hay dataset, bloqueamos visualización y grafos en la UI
-    if has_dataset_loaded():
-        options = [
-            "Inicio",
-            "Carga de datos",
-            "Variables",
-            "Grupos",
-            "Estadísticas por type",
-            "Estadísticas por informante",
-            "Grafos",
-            "Visualización",
-            "Inferencia",
-        ]
-    else:
-        options = [
-            "Inicio",
-            "Carga de datos",
-            "Variables (bloqueado)",
-            "Grupos (bloqueado)",
-            "Estadísticas por type (bloqueado)",
-            "Estadísticas por informante (bloqueado)",
-            "Grafos (bloqueado)",
-            "Visualización (bloqueado)",
-            "Inferencia (bloqueado)",
-        ]
+    # Las etiquetas del radio se mantienen constantes entre reruns. Si cambiaran
+    # (p. ej. añadiendo "(bloqueado)" cuando no hay dataset), al cargar un dataset
+    # el conjunto de opciones se sustituiría y Streamlit reiniciaría el radio a su
+    # índice 0 ("Inicio"), provocando un salto a la landing. El bloqueo real de las
+    # páginas se aplica más abajo con `has_dataset_loaded()`.
+    options = [
+        "Inicio",
+        "Carga de datos",
+        "Variables",
+        "Grupos",
+        "Estadísticas por type",
+        "Estadísticas por informante",
+        "Grafos",
+        "Visualización",
+        "Inferencia",
+    ]
 
     page_token_to_prefix = {
         "home": "Inicio",
@@ -119,6 +112,11 @@ def main():
         options,
         key="nav_page",
     )
+    if not has_dataset_loaded():
+        st.sidebar.caption(
+            "🔒 Carga o selecciona un dataset en **Carga de datos** para desbloquear "
+            "el resto de secciones."
+        )
     current_token = next(
         (token for prefix, token in page_prefix_to_token.items() if page.startswith(prefix)),
         "load",
@@ -133,7 +131,22 @@ def main():
 
     if is_multi_tenant() and LOGOUT_URL:
         st.sidebar.markdown("<div style='flex:1 1 auto'></div>", unsafe_allow_html=True)
-        st.sidebar.link_button("Cerrar Sesión", LOGOUT_URL, help="Cerrar sesión")
+        # `st.link_button` fuerza target="_blank": abre el logout en una pestaña
+        # nueva y deja la sesión original abierta. Renderizamos un ancla con
+        # target="_self" para navegar en la misma pestaña y cerrar sesión aquí.
+        logout_url = html.escape(LOGOUT_URL, quote=True)
+        st.sidebar.markdown(
+            f'<a href="{logout_url}" target="_self" class="glx-logout-btn" '
+            'title="Cerrar sesión">Cerrar Sesión</a>'
+            "<style>.glx-logout-btn{display:inline-flex;align-items:center;"
+            "justify-content:center;padding:0.25rem 0.75rem;"
+            "border:1px solid rgba(128,128,128,0.4);border-radius:0.5rem;"
+            "color:inherit;text-decoration:none;font-weight:400;line-height:1.6;"
+            "transition:color .15s,border-color .15s}"
+            ".glx-logout-btn:hover{color:rgb(255,75,75);border-color:rgb(255,75,75)}"
+            "</style>",
+            unsafe_allow_html=True,
+        )
 
     if page.startswith("Inicio"):
         render_home()

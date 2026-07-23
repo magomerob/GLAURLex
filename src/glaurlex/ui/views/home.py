@@ -20,6 +20,7 @@ MINISTERIO_PATH = _ASSETS_DIR / "ministerio.png"
 
 AUTHOR_EMAIL = "magomerob@unirioja.es"
 
+
 def _app_version() -> str:
     try:
         return version("glaurlex")
